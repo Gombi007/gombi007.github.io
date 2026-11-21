@@ -22,12 +22,12 @@ const moveKeys = new Set([
   'ShiftLeft', 'ShiftRight',
 ]);
 const languageButtons = document.querySelectorAll('[data-lang]');
-let language = 'en';
+let language = 'hu';
 let loadFailure;
 let roomSize = [2.9, 4.1];
 let refreshLanguage = () => {};
 try {
-  if (localStorage.getItem('room-language') === 'hu') language = 'hu';
+  if (localStorage.getItem('room-language') === 'en') language = 'en';
 } catch {
   // The language selector is still usable when storage is unavailable.
 }
@@ -106,7 +106,6 @@ async function init() {
   const playerLayer = 1;
   const eyeHeight = 1.64 * scale;
   const spawn = new THREE.Vector3(1.45, 0, 0.40).multiplyScalar(scale);
-  chase.layers.enable(playerLayer);
 
   const player = new THREE.Group();
   avatar.scene.scale.setScalar(scale);
@@ -200,8 +199,7 @@ async function init() {
   const cameraRay = new THREE.Ray();
   const cameraHit = new THREE.Vector3();
   const cameraPivot = new THREE.Vector3();
-  const cameraPosition = new THREE.Vector3();
-  const cameraAngles = [0, Math.PI / 3, -Math.PI / 3, Math.PI * 2 / 3, -Math.PI * 2 / 3, Math.PI];
+  let chaseDistance;
 
   let mode = 'ready';
   let thirdPerson = false;
@@ -278,7 +276,7 @@ async function init() {
     dimensionToggle.focus();
   });
 
-  function updateCameras() {
+  function updateCameras(delta) {
     eye.position.copy(player.position);
     eye.position.y += eyeHeight;
     eye.rotation.set(pitch, yaw, 0);
@@ -289,29 +287,26 @@ async function init() {
     cameraRay.origin.copy(cameraPivot);
     const shoulder = 0.27;
     const elevation = 0.58 - Math.sin(pitch) * 1.35;
-    let bestDistance = -1;
-    // Try nearby angles when walls or furniture crowd the camera.
-    for (const angle of cameraAngles) {
-      const bearing = yaw + angle;
-      const sin = Math.sin(bearing);
-      const cos = Math.cos(bearing);
-      cameraRay.direction.set(1.85 * sin + shoulder * cos, elevation, 1.85 * cos - shoulder * sin);
-      let distance = cameraRay.direction.length() * scale;
-      cameraRay.direction.normalize();
-      if (cameraRay.intersectBox(roomCameraBounds, cameraHit)) {
-        distance = Math.min(distance, cameraHit.distanceTo(cameraPivot));
-      }
-      for (const box of cameraObstacles) {
-        if (!box.containsPoint(cameraPivot) && cameraRay.intersectBox(box, cameraHit)) {
-          distance = Math.min(distance, cameraHit.distanceTo(cameraPivot));
-        }
-      }
-      if (distance <= bestDistance) continue;
-      bestDistance = distance;
-      cameraRay.at(distance, cameraPosition);
-      if (distance >= 1.18 * scale) break;
+    const sin = Math.sin(yaw);
+    const cos = Math.cos(yaw);
+    cameraRay.direction.set(1.85 * sin + shoulder * cos, elevation, 1.85 * cos - shoulder * sin);
+    let clearDistance = cameraRay.direction.length() * scale;
+    cameraRay.direction.normalize();
+    if (cameraRay.intersectBox(roomCameraBounds, cameraHit)) {
+      clearDistance = Math.min(clearDistance, cameraHit.distanceTo(cameraPivot));
     }
-    chase.position.copy(cameraPosition);
+    for (const box of cameraObstacles) {
+      if (cameraRay.intersectBox(box, cameraHit)) {
+        clearDistance = Math.min(clearDistance, cameraHit.distanceTo(cameraPivot));
+      }
+    }
+
+    // Move in immediately at an obstruction and ease back out as space opens up.
+    chaseDistance = Math.min(clearDistance, THREE.MathUtils.damp(chaseDistance ?? clearDistance, clearDistance, 12, delta));
+    cameraRay.at(chaseDistance, chase.position);
+    // Keep the view clear when the player would fill the frame.
+    if (chaseDistance < 0.48 * scale) chase.layers.disable(playerLayer);
+    else chase.layers.enable(playerLayer);
     chase.lookAt(cameraPivot);
   }
 
@@ -341,6 +336,7 @@ async function init() {
     player.rotation.y = 0;
     yaw = entranceYaw;
     pitch = entrancePitch;
+    chaseDistance = undefined;
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
   }
@@ -361,6 +357,7 @@ async function init() {
 
   function switchCamera() {
     thirdPerson = !thirdPerson;
+    chaseDistance = undefined;
     if (!thirdPerson) player.rotation.y = yaw + Math.PI;
     refreshCameraToggle();
     renderer.shadowMap.needsUpdate = true;
@@ -580,7 +577,7 @@ async function init() {
       dirty = true;
     }
     if (!dirty) return;
-    updateCameras();
+    updateCameras(delta);
     renderer.render(scene, thirdPerson ? chase : eye);
     dirty = false;
   });

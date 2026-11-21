@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="hu">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#192024">
-  <meta name="description" content="Explore a furnished Blender room in first or third person.">
-  <title>3D Room · Room Walkthrough</title>
+  <meta name="description" content="Járd be a Blenderben készült berendezett szobát belső vagy külső nézetből.">
+  <title>3D Szoba · Szobabejárás</title>
   <link rel="stylesheet" href="./style.css?v=3">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js?v=5"></script>
+  <script type="module" src="./room.js?v=6"></script>
 </head>
 <body data-mode="ready">
   <main class="layout">
-    <aside class="panel" id="panel" aria-label="Walkthrough menu" data-i18n-label="menu">
+    <aside class="panel" id="panel" aria-label="Szobabejárás menü" data-i18n-label="menu">
       <div class="brand">
         <span class="brand-icon" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none">
@@ -22,64 +22,64 @@
               stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span data-i18n="brand">Room walkthrough</span>
+        <span data-i18n="brand">Szobabejárás</span>
       </div>
 
       <div class="intro">
-        <h1 data-i18n="title">3D Room</h1>
-        <p class="room-size" id="room-size">2.90 × 4.10 m</p>
-        <p class="intro-copy" id="intro-copy">Walk through the furnished room in first or third person.</p>
+        <h1 data-i18n="title">3D Szoba</h1>
+        <p class="room-size" id="room-size">2,90 × 4,10 m</p>
+        <p class="intro-copy" id="intro-copy">Járd be a berendezett szobát belső vagy külső nézetből.</p>
         <button class="play" id="play" type="button" disabled>
           <span class="play-icon" aria-hidden="true"></span>
-          <span id="play-label">Loading room…</span>
+          <span id="play-label">A szoba betöltése…</span>
         </button>
         <p class="load-error" id="load-error" role="status" hidden></p>
-        <button class="text-button" id="restart" type="button" data-i18n="restart" hidden>Return to entrance</button>
+        <button class="text-button" id="restart" type="button" data-i18n="restart" hidden>Vissza a bejárathoz</button>
       </div>
 
-      <div class="controls" aria-label="Game controls" data-i18n-label="controls">
+      <div class="controls" aria-label="Irányítás" data-i18n-label="controls">
         <div class="desktop-controls">
-          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span data-i18n="move">Move</span></div>
-          <div class="control-row"><span class="control-device" data-i18n="mouse">Mouse</span><span data-i18n="look">Look around</span></div>
-          <div class="control-row"><span><kbd>V</kbd></span><span data-i18n="switchView">Switch camera</span></div>
-          <div class="control-row"><span><kbd>Esc</kbd></span><span data-i18n="pause">Pause</span></div>
+          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span data-i18n="move">Mozgás</span></div>
+          <div class="control-row"><span class="control-device" data-i18n="mouse">Egér</span><span data-i18n="look">Körülnézés</span></div>
+          <div class="control-row"><span><kbd>V</kbd></span><span data-i18n="switchView">Nézetváltás</span></div>
+          <div class="control-row"><span><kbd>Esc</kbd></span><span data-i18n="pause">Szünet</span></div>
         </div>
-        <p class="touch-controls" data-i18n="touchControls">Use the joystick to move. Drag the room to look around.</p>
+        <p class="touch-controls" data-i18n="touchControls">Mozgás a virtuális karral. A körülnézéshez húzd el a képet.</p>
       </div>
 
       <section class="dimensions-panel" id="dimensions-panel" aria-labelledby="dimensions-title" hidden>
         <header>
-          <h2 id="dimensions-title" data-i18n="dimensions">Dimensions</h2>
-          <button id="dimensions-close" class="dimension-close" type="button" aria-label="Hide dimensions" data-i18n-label="closeDimensions">×</button>
+          <h2 id="dimensions-title" data-i18n="dimensions">Méretek</h2>
+          <button id="dimensions-close" class="dimension-close" type="button" aria-label="Méretek elrejtése" data-i18n-label="closeDimensions">×</button>
         </header>
-        <h3 data-i18n="structure">Walls and openings</h3>
-        <p data-i18n="structureOrder">Room: width × depth × height. Walls and openings: width × height.</p>
+        <h3 data-i18n="structure">Falak és nyílások</h3>
+        <p data-i18n="structureOrder">Szoba: szélesség × mélység × magasság. Falak és nyílások: szélesség × magasság.</p>
         <div id="structure-list" class="dimensions-list"></div>
-        <h3 data-i18n="furniture">Furniture</h3>
-        <p data-i18n="furnitureOrder">Width × depth × height.</p>
+        <h3 data-i18n="furniture">Bútorok</h3>
+        <p data-i18n="furnitureOrder">Szélesség × mélység × magasság.</p>
         <div id="furniture-list" class="dimensions-list"></div>
       </section>
     </aside>
 
-    <section class="stage" id="stage" aria-label="Interactive 3D room" data-i18n-label="stage">
+    <section class="stage" id="stage" aria-label="Interaktív 3D szoba" data-i18n-label="stage">
       <div class="viewport" id="viewport"></div>
       <div class="stage-top">
         <button class="scene-button" id="pause" type="button" hidden>
-          <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Pause</span>
+          <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Szünet</span>
         </button>
         <div class="stage-tools">
-          <button class="scene-button" id="camera-toggle" type="button" aria-label="Third-person view (TPS)" data-i18n-label="thirdPerson" aria-pressed="false" aria-keyshortcuts="V" disabled>FPS</button>
-          <button class="scene-button" id="dimensions-toggle" type="button" aria-controls="dimensions-panel" aria-pressed="false" aria-keyshortcuts="M" data-i18n="dimensions" disabled>Dimensions</button>
+          <button class="scene-button" id="camera-toggle" type="button" aria-label="Külső nézet (TPS)" data-i18n-label="thirdPerson" aria-pressed="false" aria-keyshortcuts="V" disabled>FPS</button>
+          <button class="scene-button" id="dimensions-toggle" type="button" aria-controls="dimensions-panel" aria-pressed="false" aria-keyshortcuts="M" data-i18n="dimensions" disabled>Méretek</button>
           <button class="scene-button" id="lighting" type="button" aria-pressed="false" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20.5 15.7a8.8 8.8 0 0 1-12.2-12 9 9 0 1 0 12.2 12Z"
                 stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span id="lighting-label">Evening</span>
+            <span id="lighting-label">Esti fény</span>
           </button>
-          <div class="language" role="group" aria-label="Language" data-i18n-label="language">
-            <button type="button" data-lang="en" aria-label="English" aria-pressed="true">EN</button>
-            <button type="button" data-lang="hu" lang="hu" aria-label="Magyar" aria-pressed="false">HU</button>
+          <div class="language" role="group" aria-label="Nyelv" data-i18n-label="language">
+            <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+            <button type="button" data-lang="hu" lang="hu" aria-label="Magyar" aria-pressed="true">HU</button>
           </div>
         </div>
       </div>
@@ -91,6 +91,6 @@
       </div>
     </section>
   </main>
-  <noscript>Enable JavaScript to walk through the 3D room.</noscript>
+  <noscript>A 3D szoba bejárásához engedélyezd a JavaScriptet.</noscript>
 </body>
 </html>
