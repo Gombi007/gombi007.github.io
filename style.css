@@ -175,6 +175,7 @@ canvas { display: block; width: 100%; height: 100%; }
 body[data-mode="playing"] .layout { display: block; }
 body[data-mode="playing"] .panel { display: none; }
 body[data-mode="playing"] .stage { height: 100svh; }
+:fullscreen body[data-mode="playing"] .stage { height: 100dvh; }
 
 @media (pointer: coarse) {
   .desktop-controls { display: none; }

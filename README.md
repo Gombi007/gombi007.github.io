@@ -16,7 +16,7 @@ python -m http.server 8000
 
 Select **Play** to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and tap the lighting button to switch lighting.
 
-Use **EN** or **HU** to switch languages. Press **Q** during play to toggle measurement lines and labels. Use **1–5** to select light grey, blue, green, medium-dark grey, or dark grey walls.
+Use **EN** or **HU** to switch languages. Press **Q** during play to toggle measurement lines and labels, and **F** to toggle fullscreen. Use **1–5** to select light grey, blue, green, medium-dark grey, or dark grey walls.
 
 The repo root can be served directly by GitHub Pages from the `main` branch. Three.js r180 and the needed addons are included under `vendor/` with their MIT license. The site makes no third-party requests at runtime.
 

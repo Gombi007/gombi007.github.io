@@ -3,7 +3,7 @@ import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
 import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=4';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=6';
+import { formatMeasures, messages } from './translations.js?v=7';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -270,6 +270,7 @@ async function init() {
   let stickSide = 0;
   let stickForward = 0;
   let measurementsEnabled = false;
+  let fullscreenPending = false;
   const keys = new Set();
   const measurements = createMeasurementLayer(measures, furnitureFrames);
   measurements.group.traverse((object) => object.layers.set(measurementLayer));
@@ -426,6 +427,22 @@ async function init() {
     play.focus({ preventScroll: true });
   }
 
+  async function toggleFullscreen() {
+    if (fullscreenPending || !document.fullscreenEnabled) return;
+    fullscreenPending = true;
+    try {
+      if (document.fullscreenElement === document.documentElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      }
+    } catch {
+      // Keep the current view if the browser declines the request.
+    } finally {
+      fullscreenPending = false;
+    }
+  }
+
   function updateLighting() {
     night = !night;
     hemisphere.intensity = night ? 0.65 : 1.9;
@@ -468,13 +485,20 @@ async function init() {
     refreshTip();
   });
   document.addEventListener('pointerlockerror', refreshTip);
+  document.addEventListener('fullscreenchange', resize);
   canvas.addEventListener('mousemove', (event) => {
     if (document.pointerLockElement === canvas && mode === 'playing') {
       aim(event.movementX, event.movementY);
     }
   });
   document.addEventListener('keydown', (event) => {
-    if (mode !== 'playing' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'KeyF' && (mode === 'playing' || document.fullscreenElement === document.documentElement)) {
+      event.preventDefault();
+      if (!event.repeat) toggleFullscreen();
+      return;
+    }
+    if (mode !== 'playing') return;
     if (Object.hasOwn(wallColors, event.key)) {
       event.preventDefault();
       if (!event.repeat) changeWallPaint(event.key);
