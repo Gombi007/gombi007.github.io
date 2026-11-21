@@ -75,8 +75,21 @@ h1 { margin: 0; font: 500 clamp(3.35rem, 5.35vw, 5.55rem)/.92 Georgia, serif; le
 .load-error { color: #ffcaac; }
 
 .controls { border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: .875rem; }
-.desktop-controls { margin: 0; white-space: pre-line; }
+.desktop-controls { margin: 0; font-size: .8rem; line-height: 1.95; white-space: pre-line; }
 .touch-controls { display: none; margin: 0; }
+kbd {
+  display: inline-block;
+  min-inline-size: 1.4em;
+  padding: .12em .24em;
+  border: 1px solid #778385;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #303c40;
+  color: #fff9ef;
+  font: 600 .88em/1.2 ui-monospace, monospace;
+  text-align: center;
+}
+kbd + kbd { margin-inline-start: .15em; }
 
 .stage {
   position: relative;
@@ -137,6 +150,7 @@ canvas { display: block; width: 100%; height: 100%; }
   max-width: calc(100% - 48px);
   padding: 8px 13px;
   text-align: left;
+  line-height: 1.85;
   white-space: pre-line;
   width: max-content;
   pointer-events: none;

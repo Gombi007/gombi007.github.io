@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=6';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=7';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=8';
+import { formatMeasures, messages } from './translations.js?v=9';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -33,6 +33,16 @@ try {
 
 const text = (key) => messages[language][key];
 
+function showKeyboardHint(element, hint) {
+  const parts = text(hint).split(/\[([^\]]+)\]/);
+  element.replaceChildren(...parts.map((part, index) => {
+    if (index % 2 === 0) return part;
+    const key = document.createElement('kbd');
+    key.textContent = part;
+    return key;
+  }));
+}
+
 function applyLanguage() {
   document.documentElement.lang = language;
   document.title = text('pageTitle');
@@ -45,11 +55,12 @@ function applyLanguage() {
   for (const button of languageButtons) {
     button.setAttribute('aria-pressed', String(button.dataset.lang === language));
   }
+  showKeyboardHint(byId('desktop-controls'), 'playHint');
   byId('room-size').textContent = formatMeasures(roomSize, language);
   if (play.disabled) {
     byId('play-label').textContent = text(loadFailure ? 'unavailable' : 'loading');
     byId('intro-copy').textContent = text('intro');
-    byId('lighting-label').textContent = text('night');
+    byId('lighting-label').textContent = text('day');
   }
   if (loadFailure) byId('load-error').textContent = text(loadFailure);
   refreshLanguage();
@@ -87,7 +98,7 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=9', import.meta.url).href),
+    loader.loadAsync(new URL('./assets/room.glb?v=10', import.meta.url).href),
     fetch(new URL('./assets/dimensions.json?v=8', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
@@ -281,7 +292,7 @@ async function init() {
   let thirdPerson = false;
   let yaw = entranceYaw;
   let pitch = entrancePitch;
-  let night = false;
+  let night = true;
   let dirty = true;
   let locked = false;
   let previousTime;
@@ -368,7 +379,8 @@ async function init() {
     const stageTip = byId('stage-tip');
     stageTip.hidden = mode === 'ready';
     const tip = mode === 'paused' ? 'paused' : touch.matches ? 'touchHint' : locked ? 'playHint' : 'dragHint';
-    stageTip.textContent = text(tip);
+    if (tip === 'playHint' || tip === 'dragHint') showKeyboardHint(stageTip, tip);
+    else stageTip.textContent = text(tip);
     joystick.hidden = mode !== 'playing' || !touch.matches;
   }
 
@@ -463,8 +475,8 @@ async function init() {
     }
   }
 
-  function updateLighting() {
-    night = !night;
+  function setLighting(isNight) {
+    night = isNight;
     hemisphere.intensity = night ? 0.65 : 1.9;
     sun.intensity = night ? 0.24 : 2.35;
     sun.color.setHex(night ? 0xa5bbf1 : 0xfff1dd);
@@ -491,7 +503,7 @@ async function init() {
   }
 
   play.addEventListener('click', start);
-  lighting.addEventListener('click', updateLighting);
+  lighting.addEventListener('click', () => setLighting(!night));
   pause.addEventListener('click', pauseWalk);
   restart.addEventListener('click', () => {
     resetPlayer();
@@ -524,7 +536,7 @@ async function init() {
       if (!event.repeat) changeWallPaint(event.key);
     } else if (event.code === 'KeyE') {
       event.preventDefault();
-      if (!event.repeat) updateLighting();
+      if (!event.repeat) setLighting(!night);
     } else if (event.code === 'KeyV') {
       event.preventDefault();
       if (!event.repeat) switchCamera();
@@ -592,6 +604,8 @@ async function init() {
 
   canvas.hidden = false;
   play.disabled = lighting.disabled = false;
+  changeWallPaint('4');
+  setLighting(night);
   resetPlayer();
   resize();
   changeMode('ready');

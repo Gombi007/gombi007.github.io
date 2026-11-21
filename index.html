@@ -6,11 +6,11 @@
   <meta name="theme-color" content="#192024">
   <meta name="description" content="Járd be a Blenderben készült berendezett szobát belső vagy külső nézetből.">
   <title>3D Szoba · Szobabejárás</title>
-  <link rel="stylesheet" href="./style.css?v=6">
+  <link rel="stylesheet" href="./style.css?v=7">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js?v=16"></script>
+  <script type="module" src="./room.js?v=17"></script>
 </head>
 <body data-mode="ready">
   <main class="layout">
@@ -38,9 +38,9 @@
       </div>
 
       <div class="controls" aria-label="Irányítás" data-i18n-label="controls">
-        <p class="desktop-controls" data-i18n="playHint">WASD / nyilak · Shift futás · Esc szünet
-Egér nézelődés · Q méretek · V nézet
-E fény · F teljes képernyő · 1–5 falszín</p>
+        <p class="desktop-controls" id="desktop-controls">WASD / nyilak · Shift futás · E fény
+Egér · Q méretek · V nézet · Esc szünet
+1–5 falszín · F teljes képernyő</p>
         <p class="touch-controls" data-i18n="touchControls">Mozgás a virtuális karral. A körülnézéshez húzd el a képet.</p>
       </div>
     </aside>
@@ -52,12 +52,12 @@ E fény · F teljes képernyő · 1–5 falszín</p>
           <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Szünet</span>
         </button>
         <div class="stage-tools">
-          <button class="scene-button" id="lighting" type="button" aria-pressed="false" aria-keyshortcuts="E" disabled>
+          <button class="scene-button" id="lighting" type="button" aria-pressed="true" aria-keyshortcuts="E" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20.5 15.7a8.8 8.8 0 0 1-12.2-12 9 9 0 1 0 12.2 12Z"
                 stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span id="lighting-label">Éjszakai fény</span>
+            <span id="lighting-label">Nappali fény</span>
           </button>
           <div class="language" role="group" aria-label="Nyelv" data-i18n-label="language">
             <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
