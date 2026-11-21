@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=2';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=3';
 import { canStand, move } from './movement.js?v=4';
 import { formatMeasures, messages } from './translations.js?v=6';
 
@@ -87,8 +87,8 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=4', import.meta.url).href),
-    fetch(new URL('./assets/dimensions.json?v=4', import.meta.url)).then((response) => {
+    loader.loadAsync(new URL('./assets/room.glb?v=5', import.meta.url).href),
+    fetch(new URL('./assets/dimensions.json?v=5', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),

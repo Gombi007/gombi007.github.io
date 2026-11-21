@@ -27,8 +27,9 @@ export function createMeasurementLayer({ scale, items }, frames) {
   const offset = 0.03 * scale;
   const tick = 0.028 * scale;
   const labelHeight = 0.095 * scale;
+  const labelPixelHeight = 64;
 
-  function mark(axis, value, start, tickAxis, { labelAxis = 1, labelOffset = 0.071, toWorld } = {}) {
+  function mark(axis, value, start, tickAxis, { labelAxis = 1, labelOffset = 0.071, toWorld, title } = {}) {
     const point = (coordinates) => {
       const vector = new THREE.Vector3().fromArray(coordinates);
       return toWorld ? vector.applyMatrix4(toWorld) : vector;
@@ -45,8 +46,8 @@ export function createMeasurementLayer({ scale, items }, frames) {
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = 224;
-    canvas.height = 64;
+    canvas.width = title ? 544 : 224;
+    canvas.height = title ? 112 : labelPixelHeight;
     const context = canvas.getContext('2d');
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -55,11 +56,12 @@ export function createMeasurementLayer({ scale, items }, frames) {
     }));
     const labelPoint = [...start];
     labelPoint[axis] = (start[axis] + end[axis]) / 2;
-    labelPoint[labelAxis] += labelOffset * scale;
+    const spriteHeight = labelHeight * canvas.height / labelPixelHeight;
+    labelPoint[labelAxis] += labelOffset * scale + (spriteHeight - labelHeight) / 2;
     label.position.copy(point(labelPoint));
-    label.scale.set(labelHeight * canvas.width / canvas.height, labelHeight, 1);
+    label.scale.set(spriteHeight * canvas.width / canvas.height, spriteHeight, 1);
     group.add(label);
-    labels.push({ canvas, context, texture, value });
+    labels.push({ canvas, context, texture, value, title });
   }
 
   const room = items.find(({ id }) => id === 'room');
@@ -73,7 +75,7 @@ export function createMeasurementLayer({ scale, items }, frames) {
   mark(1, roomHeight, [wallX, roomMin[1] + offset / 3, wallZ], 0, { labelAxis: 0, labelOffset: 0.13 });
 
   const roomCenter = new THREE.Vector3().fromArray(roomMin).lerp(new THREE.Vector3().fromArray(roomMax), 0.5);
-  for (const { id, dimensions, boxes } of items) {
+  for (const { id, name, dimensions, boxes } of items) {
     const frame = frames.get(id);
     const { min, max } = frame ? { min: frame.box.min.toArray(), max: frame.box.max.toArray() } : boxes[0];
     const [width, depthOrHeight, height] = dimensions;
@@ -96,7 +98,7 @@ export function createMeasurementLayer({ scale, items }, frames) {
     const top = max[1] + offset;
     const widthStart = [frontX, top, frontZ];
     widthStart[widthAxis] = min[widthAxis];
-    mark(widthAxis, width, widthStart, depthAxis, { toWorld: frame?.toWorld });
+    mark(widthAxis, width, widthStart, depthAxis, { toWorld: frame?.toWorld, title: name });
 
     const depthStart = [frontX, top, frontZ];
     const nearMinDepth = depthAxis === 0 ? nearMinX : nearMinZ;
@@ -132,7 +134,7 @@ export function createMeasurementLayer({ scale, items }, frames) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 3,
     });
-    for (const { canvas, context, texture, value } of labels) {
+    for (const { canvas, context, texture, value, title } of labels) {
       const caption = `${format.format(value)} m`;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.font = '700 43px system-ui, sans-serif';
@@ -142,8 +144,16 @@ export function createMeasurementLayer({ scale, items }, frames) {
       context.lineWidth = 8;
       context.strokeStyle = '#191813';
       context.fillStyle = '#ffdf40';
-      context.strokeText(caption, canvas.width / 2, canvas.height / 2 + 2);
-      context.fillText(caption, canvas.width / 2, canvas.height / 2 + 2);
+      const centerX = canvas.width / 2;
+      const dimensionY = canvas.height - 30;
+      context.strokeText(caption, centerX, dimensionY);
+      context.fillText(caption, centerX, dimensionY);
+      if (title) {
+        context.font = '700 34px system-ui, sans-serif';
+        context.lineWidth = 7;
+        context.strokeText(title, centerX, 31, canvas.width - 16);
+        context.fillText(title, centerX, 31, canvas.width - 16);
+      }
       texture.needsUpdate = true;
     }
   }
