@@ -3,7 +3,7 @@ import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
 import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=2';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=5';
+import { formatMeasures, messages } from './translations.js?v=6';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -15,6 +15,7 @@ const joystick = byId('joystick');
 const touch = matchMedia('(pointer: coarse)');
 const entranceYaw = Math.PI;
 const entrancePitch = -0.075;
+const wallColors = { 1: null, 2: 0x7d93a9, 3: 0x899d8a, 4: 0x686a6d, 5: 0x34373d };
 const moveKeys = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
   'ShiftLeft', 'ShiftRight',
@@ -86,7 +87,7 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=3', import.meta.url).href),
+    loader.loadAsync(new URL('./assets/room.glb?v=4', import.meta.url).href),
     fetch(new URL('./assets/dimensions.json?v=4', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
@@ -151,6 +152,7 @@ async function init() {
   if (!floor) throw new Error('The room export could not locate its floor.');
   const bounds = new THREE.Box3().setFromObject(floor);
   const obstacles = [];
+  const wallPaints = new Map();
   const furnitureFrames = new Map(
     measures.items.filter((item) => item.rotationY).map((item) => [item.id, createFurnitureFrame(item, scale)]),
   );
@@ -170,6 +172,11 @@ async function init() {
     object.receiveShadow = role !== 'glass';
     if (role === 'glass') object.material = glass;
     if (role === 'mirror') mirrorMesh = object;
+    if (role === 'enclosure' && object.material.color) {
+      const original = object.material;
+      if (!wallPaints.has(original)) wallPaints.set(original, original.clone());
+      object.material = wallPaints.get(original);
+    }
     const maps = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of maps) {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -437,6 +444,15 @@ async function init() {
     dirty = true;
   }
 
+  function changeWallPaint(key) {
+    const color = wallColors[key];
+    for (const [original, paint] of wallPaints) {
+      if (color === null) paint.color.copy(original.color);
+      else paint.color.setHex(color);
+    }
+    dirty = true;
+  }
+
   play.addEventListener('click', start);
   lighting.addEventListener('click', updateLighting);
   pause.addEventListener('click', pauseWalk);
@@ -459,7 +475,10 @@ async function init() {
   });
   document.addEventListener('keydown', (event) => {
     if (mode !== 'playing' || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.code === 'KeyE') {
+    if (Object.hasOwn(wallColors, event.key)) {
+      event.preventDefault();
+      if (!event.repeat) changeWallPaint(event.key);
+    } else if (event.code === 'KeyE') {
       event.preventDefault();
       if (!event.repeat) updateLighting();
     } else if (event.code === 'KeyV') {
