@@ -4,7 +4,7 @@ import { Reflector } from './vendor/objects/Reflector.js';
 import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=9';
 import { canStand, move } from './movement.js?v=4';
 import { formatMeasures, messages } from './translations.js?v=11';
-import { createTourAudio } from './tour-audio.js?v=1';
+import { createTourAudio } from './tour-audio.js?v=2';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -676,7 +676,7 @@ async function init() {
       const dx = player.position.x - x;
       const dz = player.position.z - z;
       const distance = Math.hypot(dx, dz);
-      audio.advance(distance / scale);
+      audio.advance(distance / scale, delta);
       const nextAction = distance > 0 ? walk : idle;
       if (activeAction !== nextAction) {
         activeAction.fadeOut(0.14);

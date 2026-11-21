@@ -1,5 +1,6 @@
 const musicVolume = 0.21;
 const firstStepDistance = 0.28;
+const stepResetDelay = 0.24;
 const stepSlot = 0.30;
 const stepDuration = 0.225;
 const stepOrder = [0, 3, 1, 4, 2, 5];
@@ -20,6 +21,7 @@ export function createTourAudio(stepLength) {
   let playing = false;
   let musicEnabled = true;
   let distanceToStep = firstStepDistance;
+  let idleTime = 0;
   let nextStep = 0;
 
   function initialize() {
@@ -38,7 +40,7 @@ export function createTourAudio(stepLength) {
       source.connect(musicGain);
       source.start();
     }).catch((error) => console.warn('Room tour music:', error));
-    loadBuffer(context, './assets/laminate-steps.wav').then((buffer) => {
+    loadBuffer(context, './assets/laminate-steps.wav?v=2').then((buffer) => {
       stepBuffer = buffer;
     }).catch((error) => console.warn('Room tour footsteps:', error));
   }
@@ -46,6 +48,7 @@ export function createTourAudio(stepLength) {
   function setPlaying(active) {
     playing = active;
     distanceToStep = firstStepDistance;
+    idleTime = 0;
     if (active && AudioContextClass) {
       try {
         if (!context) initialize();
@@ -69,11 +72,14 @@ export function createTourAudio(stepLength) {
     return musicEnabled;
   }
 
-  function advance(distance) {
-    if (!playing || distance <= 0) {
-      distanceToStep = firstStepDistance;
+  function advance(distance, delta) {
+    if (!playing) return;
+    if (distance <= 0) {
+      idleTime += delta;
+      if (idleTime >= stepResetDelay) distanceToStep = firstStepDistance;
       return;
     }
+    idleTime = 0;
     if (!stepBuffer || context.state !== 'running') return;
     distanceToStep -= distance;
     if (distanceToStep > 0) return;
