@@ -87,7 +87,7 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=8', import.meta.url).href),
+    loader.loadAsync(new URL('./assets/room.glb?v=9', import.meta.url).href),
     fetch(new URL('./assets/dimensions.json?v=8', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
