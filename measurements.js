@@ -28,6 +28,27 @@ export function createMeasurementLayer({ scale, items }, frames) {
   const tick = 0.028 * scale;
   const labelHeight = 0.095 * scale;
   const labelPixelHeight = 64;
+  const room = items.find(({ id }) => id === 'room');
+  const { min: roomMin, max: roomMax } = room.boxes[0];
+  const [roomWidth, roomDepth, roomHeight] = room.dimensions;
+  const roomBounds = new THREE.Box3(
+    new THREE.Vector3().fromArray(roomMin),
+    new THREE.Vector3().fromArray(roomMax),
+  );
+  // Keep ruler ends clear of the walls, finished floor, and ceiling.
+  const rulerBounds = roomBounds.clone().expandByScalar(-0.025 * scale);
+  const trimRay = new THREE.Ray();
+
+  function addSegment(start, end) {
+    trimRay.set(start, end.clone().sub(start).normalize());
+    if (!rulerBounds.containsPoint(start) && !trimRay.intersectBox(rulerBounds, start)) return false;
+    trimRay.origin.copy(end);
+    trimRay.direction.negate();
+    if (!rulerBounds.containsPoint(end) && !trimRay.intersectBox(rulerBounds, end)) return false;
+    if (start.distanceToSquared(end) < 1e-12) return false;
+    segments.push([start, end]);
+    return true;
+  }
 
   function mark(axis, value, start, tickAxis, { labelAxis = 1, labelOffset = 0.071, toWorld, title } = {}) {
     const point = (coordinates) => {
@@ -36,13 +57,14 @@ export function createMeasurementLayer({ scale, items }, frames) {
     };
     const end = [...start];
     end[axis] += value * scale;
-    segments.push([point(start), point(end)]);
-    for (const endpoint of [start, end]) {
-      const a = [...endpoint];
-      const b = [...endpoint];
-      a[tickAxis] -= tick;
-      b[tickAxis] += tick;
-      segments.push([point(a), point(b)]);
+    const first = point(start);
+    const last = point(end);
+    if (!addSegment(first, last)) return;
+    const tickOffset = new THREE.Vector3().setComponent(tickAxis, 1);
+    if (toWorld) tickOffset.transformDirection(toWorld);
+    tickOffset.multiplyScalar(tick);
+    for (const endpoint of [first, last]) {
+      addSegment(endpoint.clone().sub(tickOffset), endpoint.clone().add(tickOffset));
     }
 
     const canvas = document.createElement('canvas');
@@ -64,26 +86,30 @@ export function createMeasurementLayer({ scale, items }, frames) {
     labels.push({ canvas, context, texture, value, title });
   }
 
-  const room = items.find(({ id }) => id === 'room');
-  const { min: roomMin, max: roomMax } = room.boxes[0];
-  const [roomWidth, roomDepth, roomHeight] = room.dimensions;
   const wallX = roomMin[0] + 2 * offset;
   const wallZ = roomMax[2] - 2 * offset;
-  const wallY = roomMax[1] - 3 * offset;
-  mark(0, roomWidth, [roomMin[0], wallY, wallZ], 1);
-  mark(2, roomDepth, [wallX, wallY, roomMin[2]], 1);
-  mark(1, roomHeight, [wallX, roomMin[1] + offset / 3, wallZ], 0, { labelAxis: 0, labelOffset: 0.13 });
+  const wallY = roomMax[1] - 4 * offset;
+  mark(0, roomWidth, [roomMin[0], wallY, wallZ], 1, { labelOffset: 0.064 });
+  mark(2, roomDepth, [wallX, wallY, roomMin[2]], 1, { labelOffset: 0.064 });
+  mark(1, roomHeight, [roomMax[0] - 2 * offset, roomMin[1], wallZ], 0,
+    { labelAxis: 0, labelOffset: -0.13 });
 
-  const roomCenter = new THREE.Vector3().fromArray(roomMin).lerp(new THREE.Vector3().fromArray(roomMax), 0.5);
+  const roomCenter = roomBounds.getCenter(new THREE.Vector3());
   for (const { id, name, dimensions, boxes } of items) {
     const frame = frames.get(id);
     const { min, max } = frame ? { min: frame.box.min.toArray(), max: frame.box.max.toArray() } : boxes[0];
     const [width, depthOrHeight, height] = dimensions;
-    if (id === 'window' || id === 'doorway') {
-      const z = id === 'window' ? min[2] - offset : max[2] + 2 * offset;
-      const y = Math.max(min[1], roomMin[1] + offset);
-      mark(0, width, [min[0], y, z], 1);
-      mark(1, depthOrHeight, [max[0] - offset, y, z], 0, { labelAxis: 0, labelOffset: -0.13 });
+    if (id === 'window') {
+      // Keep the window rulers on the room side of the curtains and above the heater.
+      const z = min[2] - 0.20 * scale;
+      mark(0, width, [min[0], max[1], z], 1);
+      mark(1, depthOrHeight, [max[0], min[1], z], 0, { labelAxis: 0, labelOffset: -0.13 });
+      continue;
+    }
+    if (id === 'doorway') {
+      const z = max[2] + 2 * offset;
+      mark(0, width, [min[0], min[1] + 2 * offset, z], 1);
+      mark(1, depthOrHeight, [max[0] - offset, min[1], z], 0, { labelAxis: 0, labelOffset: -0.13 });
       continue;
     }
 
@@ -95,20 +121,28 @@ export function createMeasurementLayer({ scale, items }, frames) {
     const nearMinZ = (min[2] + max[2]) / 2 > center.z;
     const frontX = nearMinX ? min[0] : max[0];
     const frontZ = nearMinZ ? min[2] : max[2];
+    const nearMinDepth = depthAxis === 0 ? nearMinX : nearMinZ;
+    const nearMinWidth = widthAxis === 0 ? nearMinX : nearMinZ;
+    const depthSide = nearMinDepth ? -1 : 1;
+    const widthSide = nearMinWidth ? -1 : 1;
     const top = max[1] + offset;
     const widthStart = [frontX, top, frontZ];
     widthStart[widthAxis] = min[widthAxis];
-    mark(widthAxis, width, widthStart, depthAxis, { toWorld: frame?.toWorld, title: name });
+    widthStart[depthAxis] += depthSide * offset;
+    mark(widthAxis, width, widthStart, 1, { toWorld: frame?.toWorld, title: name });
 
     const depthStart = [frontX, top, frontZ];
-    const nearMinDepth = depthAxis === 0 ? nearMinX : nearMinZ;
-    depthStart[depthAxis] = nearMinDepth ? min[depthAxis] : max[depthAxis] - depthOrHeight * scale;
-    mark(depthAxis, depthOrHeight, depthStart, widthAxis, { toWorld: frame?.toWorld });
+    depthStart[depthAxis] = min[depthAxis];
+    depthStart[widthAxis] += widthSide * offset;
+    // Measure beside the heater below the projecting window sill.
+    if (id === 'heater') depthStart[1] = max[1] - 0.095 * scale;
+    mark(depthAxis, depthOrHeight, depthStart, 1, { toWorld: frame?.toWorld });
 
-    const side = nearMinX ? -1 : 1;
-    const heightZ = frontZ + (nearMinZ ? 1 : -1) * 1.5 * offset;
-    mark(1, height, [frontX + side * offset, Math.max(min[1], roomMin[1] + offset / 3), heightZ], 2,
-      { labelAxis: 0, labelOffset: side * 0.12, toWorld: frame?.toWorld });
+    const heightStart = [frontX, min[1], frontZ];
+    heightStart[depthAxis] += depthSide * offset;
+    heightStart[widthAxis] += widthSide * offset;
+    mark(1, height, heightStart, widthAxis,
+      { labelAxis: depthAxis, labelOffset: depthSide * 0.12, toWorld: frame?.toWorld });
   }
 
   const strokes = new THREE.InstancedMesh(
