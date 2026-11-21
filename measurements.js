@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { messages } from './translations.js?v=8';
 
 const ink = 0xffdf40;
 const furnitureWidthAxis = { bed: 2, wardrobe: 2, cabinet: 2, desk: 2, heater: 0, shelves: 2 };
@@ -51,7 +52,7 @@ export function createMeasurementLayer({ scale, items }, frames) {
   }
 
   function mark(axis, value, start, tickAxis, {
-    labelAxis = 1, labelOffset = 0.071, toWorld, title, limits = rulerBounds,
+    labelAxis = 1, labelOffset = 0.071, toWorld, title, titleKey, limits = rulerBounds,
   } = {}) {
     const point = (coordinates) => {
       const vector = new THREE.Vector3().fromArray(coordinates);
@@ -70,8 +71,9 @@ export function createMeasurementLayer({ scale, items }, frames) {
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = title ? 544 : 224;
-    canvas.height = title ? 112 : labelPixelHeight;
+    const hasTitle = title || titleKey;
+    canvas.width = hasTitle ? 544 : 224;
+    canvas.height = hasTitle ? 112 : labelPixelHeight;
     const context = canvas.getContext('2d');
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -85,7 +87,7 @@ export function createMeasurementLayer({ scale, items }, frames) {
     label.position.copy(point(labelPoint));
     label.scale.set(spriteHeight * canvas.width / canvas.height, spriteHeight, 1);
     group.add(label);
-    labels.push({ canvas, context, texture, value, title });
+    labels.push({ canvas, context, texture, value, title, titleKey });
   }
 
   const wallX = roomMin[0] + 2 * offset;
@@ -104,8 +106,10 @@ export function createMeasurementLayer({ scale, items }, frames) {
     if (id === 'passage') {
       const limits = new THREE.Box3(new THREE.Vector3().fromArray(min), new THREE.Vector3().fromArray(max));
       limits.expandByScalar(-0.025 * scale);
-      mark(0, width, [min[0], max[1] - 4 * offset, max[2] - 2 * offset], 1,
-        { labelOffset: 0.064, limits });
+      const rulerY = max[1] - 0.20 * scale;
+      mark(0, width, [min[0], rulerY, max[2] - 2 * offset], 1, { titleKey: 'passageWidth', limits });
+      mark(2, depthOrHeight, [min[0] + 2 * offset, rulerY, min[2]], 1,
+        { labelAxis: 0, labelOffset: 0.20, titleKey: 'passageDepth', limits });
       continue;
     }
     if (id === 'window') {
@@ -177,8 +181,9 @@ export function createMeasurementLayer({ scale, items }, frames) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 3,
     });
-    for (const { canvas, context, texture, value, title } of labels) {
+    for (const { canvas, context, texture, value, title, titleKey } of labels) {
       const caption = `${format.format(value)} m`;
+      const heading = titleKey ? messages[language][titleKey] : title;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.font = '700 43px system-ui, sans-serif';
       context.textAlign = 'center';
@@ -191,11 +196,11 @@ export function createMeasurementLayer({ scale, items }, frames) {
       const dimensionY = canvas.height - 30;
       context.strokeText(caption, centerX, dimensionY);
       context.fillText(caption, centerX, dimensionY);
-      if (title) {
+      if (heading) {
         context.font = '700 34px system-ui, sans-serif';
         context.lineWidth = 7;
-        context.strokeText(title, centerX, 31, canvas.width - 16);
-        context.fillText(title, centerX, 31, canvas.width - 16);
+        context.strokeText(heading, centerX, 31, canvas.width - 16);
+        context.fillText(heading, centerX, 31, canvas.width - 16);
       }
       texture.needsUpdate = true;
     }

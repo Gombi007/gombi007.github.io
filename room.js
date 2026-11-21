@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=5';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=6';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=7';
+import { formatMeasures, messages } from './translations.js?v=8';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -87,8 +87,8 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=7', import.meta.url).href),
-    fetch(new URL('./assets/dimensions.json?v=7', import.meta.url)).then((response) => {
+    loader.loadAsync(new URL('./assets/room.glb?v=8', import.meta.url).href),
+    fetch(new URL('./assets/dimensions.json?v=8', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),
@@ -198,6 +198,8 @@ async function init() {
   if (furniture.length !== 6 ||
       Math.abs(roomBounds.max.x - roomBounds.min.x - roomWidth * scale) > 0.01 * scale ||
       Math.abs(passageBounds.max.x - passageBounds.min.x - passage.dimensions[0] * scale) > 0.01 * scale ||
+      Math.abs(passageBounds.min.z - passage.boxes[0].min[2]) > 0.01 * scale ||
+      Math.abs(passageBounds.max.z - roomBounds.min.z) > 0.01 * scale ||
       !canStand(spawn.x, spawn.z, bounds, obstacles, scale)) {
     throw new Error('The exported room is missing its walkthrough layout.');
   }

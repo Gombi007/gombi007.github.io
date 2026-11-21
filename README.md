@@ -14,7 +14,7 @@ Serve this folder over HTTP, then open [localhost:8000](http://localhost:8000) i
 python -m http.server 8000
 ```
 
-Select **Play** to start in the 3.00 m wide entrance passage. Walk forward through the door to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and tap the lighting button to switch lighting.
+Select **Play** to start in the 2.90 m wide, 4.00 m deep entrance passage. Walk forward through the door to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and tap the lighting button to switch lighting.
 
 Use **EN** or **HU** to switch languages. Press **Q** during play to toggle measurement lines and labels, and **F** to toggle fullscreen. Use **1–5** to select light grey, blue, green, medium-dark grey, or dark grey walls.
 
