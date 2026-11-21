@@ -15,6 +15,8 @@ const joystick = byId('joystick');
 const dimensionToggle = byId('dimensions-toggle');
 const dimensionPanel = byId('dimensions-panel');
 const touch = matchMedia('(pointer: coarse)');
+const entranceYaw = Math.PI;
+const entrancePitch = -0.075;
 const moveKeys = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
   'ShiftLeft', 'ShiftRight',
@@ -203,6 +205,8 @@ async function init() {
 
   let mode = 'ready';
   let thirdPerson = false;
+  let yaw = entranceYaw;
+  let pitch = entrancePitch;
   let evening = false;
   let dirty = true;
   let locked = false;
@@ -277,19 +281,20 @@ async function init() {
   function updateCameras() {
     eye.position.copy(player.position);
     eye.position.y += eyeHeight;
+    eye.rotation.set(pitch, yaw, 0);
     if (!thirdPerson) return;
 
     cameraPivot.copy(player.position);
     cameraPivot.y += 0.98 * scale;
     cameraRay.origin.copy(cameraPivot);
     const shoulder = 0.27;
-    const elevation = 0.58 - Math.sin(eye.rotation.x) * 1.35;
+    const elevation = 0.58 - Math.sin(pitch) * 1.35;
     let bestDistance = -1;
     // Try nearby angles when walls or furniture crowd the camera.
     for (const angle of cameraAngles) {
-      const yaw = eye.rotation.y + angle;
-      const sin = Math.sin(yaw);
-      const cos = Math.cos(yaw);
+      const bearing = yaw + angle;
+      const sin = Math.sin(bearing);
+      const cos = Math.cos(bearing);
       cameraRay.direction.set(1.85 * sin + shoulder * cos, elevation, 1.85 * cos - shoulder * sin);
       let distance = cameraRay.direction.length() * scale;
       cameraRay.direction.normalize();
@@ -324,16 +329,18 @@ async function init() {
   }
 
   function aim(deltaX, deltaY) {
-    eye.rotation.y -= deltaX * 0.0025;
-    eye.rotation.x = THREE.MathUtils.clamp(eye.rotation.x - deltaY * 0.0025, -1.38, 1.38);
-    if (!thirdPerson) player.rotation.y = eye.rotation.y + Math.PI;
+    if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY) || (!deltaX && !deltaY)) return;
+    yaw -= deltaX * 0.0025;
+    pitch = THREE.MathUtils.clamp(pitch - deltaY * 0.0025, -1.38, 1.38);
+    if (!thirdPerson) player.rotation.y = yaw + Math.PI;
     dirty = true;
   }
 
   function resetPlayer() {
     player.position.copy(spawn);
     player.rotation.y = 0;
-    eye.rotation.set(-0.075, Math.PI, 0);
+    yaw = entranceYaw;
+    pitch = entrancePitch;
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
   }
@@ -354,7 +361,7 @@ async function init() {
 
   function switchCamera() {
     thirdPerson = !thirdPerson;
-    if (!thirdPerson) player.rotation.y = eye.rotation.y + Math.PI;
+    if (!thirdPerson) player.rotation.y = yaw + Math.PI;
     refreshCameraToggle();
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
@@ -395,17 +402,26 @@ async function init() {
     dirty = true;
   }
 
-  function start() {
-    showDimensions(false);
-    changeMode('playing');
-    canvas.focus({ preventScroll: true });
-    if (!touch.matches && canvas.requestPointerLock) {
+  async function lockMouse() {
+    if (touch.matches || !canvas.requestPointerLock) return;
+    try {
+      // Raw mouse input avoids cursor recentering in emulated pointer lock.
+      await canvas.requestPointerLock({ unadjustedMovement: true });
+    } catch (error) {
+      if (error.name !== 'NotSupportedError' || mode !== 'playing') return;
       try {
-        canvas.requestPointerLock()?.catch(refreshTip);
+        await canvas.requestPointerLock();
       } catch {
         refreshTip();
       }
     }
+  }
+
+  function start() {
+    showDimensions(false);
+    changeMode('playing');
+    canvas.focus({ preventScroll: true });
+    lockMouse();
   }
 
   function pauseWalk() {
@@ -445,8 +461,10 @@ async function init() {
     refreshTip();
   });
   document.addEventListener('pointerlockerror', refreshTip);
-  document.addEventListener('mousemove', (event) => {
-    if (locked && mode === 'playing') aim(event.movementX, event.movementY);
+  canvas.addEventListener('mousemove', (event) => {
+    if (document.pointerLockElement === canvas && mode === 'playing') {
+      aim(event.movementX, event.movementY);
+    }
   });
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -539,7 +557,7 @@ async function init() {
       const speed = held('ShiftLeft', 'ShiftRight') ? 2.35 : 1.55;
       const { x, z } = player.position;
       if (side || forward) {
-        move(player.position, eye.rotation.y, side, forward, delta * speed * scale, bounds, obstacles, scale);
+        move(player.position, yaw, side, forward, delta * speed * scale, bounds, obstacles, scale);
       }
       const dx = player.position.x - x;
       const dz = player.position.z - z;
