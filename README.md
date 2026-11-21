@@ -14,7 +14,7 @@ Serve this folder over HTTP, then open [localhost:8000](http://localhost:8000) i
 python -m http.server 8000
 ```
 
-Select **Play** to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and use the on-screen camera and lighting buttons.
+Select **Play** to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and tap the lighting button to switch lighting.
 
 Use **EN** or **HU** to switch languages. Press **Q** during play to toggle the measurement lines and labels on the room and furniture.
 

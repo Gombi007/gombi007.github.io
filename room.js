@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createMeasurementLayer } from './measurements.js?v=1';
-import { canStand, move } from './movement.js?v=3';
-import { formatMeasures, messages } from './translations.js?v=4';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=2';
+import { canStand, move } from './movement.js?v=4';
+import { formatMeasures, messages } from './translations.js?v=5';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
 const play = byId('play');
 const lighting = byId('lighting');
-const cameraToggle = byId('camera-toggle');
 const pause = byId('pause');
 const restart = byId('restart');
 const joystick = byId('joystick');
@@ -88,7 +87,7 @@ async function init() {
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
     loader.loadAsync(new URL('./assets/room.glb?v=3', import.meta.url).href),
-    fetch(new URL('./assets/dimensions.json?v=3', import.meta.url)).then((response) => {
+    fetch(new URL('./assets/dimensions.json?v=4', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),
@@ -152,6 +151,9 @@ async function init() {
   if (!floor) throw new Error('The room export could not locate its floor.');
   const bounds = new THREE.Box3().setFromObject(floor);
   const obstacles = [];
+  const furnitureFrames = new Map(
+    measures.items.filter((item) => item.rotationY).map((item) => [item.id, createFurnitureFrame(item, scale)]),
+  );
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0xe1eef6, roughness: 0.12, opacity: 0.14, transparent: true,
     depthWrite: false, metalness: 0,
@@ -159,7 +161,10 @@ async function init() {
   let mirrorMesh;
   model.traverse((object) => {
     const role = object.userData.roomRole;
-    if (role === 'collision') obstacles.push(new THREE.Box3().setFromObject(object));
+    if (role === 'collision') {
+      const id = object.userData.name?.replace(/^Move /, '');
+      obstacles.push(furnitureFrames.get(id) ?? { box: new THREE.Box3().setFromObject(object) });
+    }
     if (!object.isMesh) return;
     object.castShadow = object !== floor && role !== 'glass' && role !== 'mirror';
     object.receiveShadow = role !== 'glass';
@@ -236,8 +241,11 @@ async function init() {
   roomCameraBounds.min.y = spawn.y;
   roomCameraBounds.max.y = ceilingHeight;
   roomCameraBounds.expandByScalar(-cameraPadding);
-  const cameraObstacles = obstacles.map((box) => box.clone().expandByScalar(cameraPadding));
+  const cameraObstacles = obstacles.map(({ box, toLocal }) => ({
+    box: box.clone().expandByScalar(cameraPadding), toLocal,
+  }));
   const cameraRay = new THREE.Ray();
+  const localRay = new THREE.Ray();
   const cameraHit = new THREE.Vector3();
   const cameraPivot = new THREE.Vector3();
   let chaseDistance;
@@ -256,7 +264,7 @@ async function init() {
   let stickForward = 0;
   let measurementsEnabled = false;
   const keys = new Set();
-  const measurements = createMeasurementLayer(measures);
+  const measurements = createMeasurementLayer(measures, furnitureFrames);
   measurements.group.traverse((object) => object.layers.set(measurementLayer));
   eye.layers.enable(measurementLayer);
   chase.layers.enable(measurementLayer);
@@ -281,9 +289,10 @@ async function init() {
     if (cameraRay.intersectBox(roomCameraBounds, cameraHit)) {
       clearDistance = Math.min(clearDistance, cameraHit.distanceTo(cameraPivot));
     }
-    for (const box of cameraObstacles) {
-      if (cameraRay.intersectBox(box, cameraHit)) {
-        clearDistance = Math.min(clearDistance, cameraHit.distanceTo(cameraPivot));
+    for (const { box, toLocal } of cameraObstacles) {
+      const ray = toLocal ? localRay.copy(cameraRay).applyMatrix4(toLocal) : cameraRay;
+      if (ray.intersectBox(box, cameraHit)) {
+        clearDistance = Math.min(clearDistance, cameraHit.distanceTo(ray.origin));
       }
     }
 
@@ -335,9 +344,7 @@ async function init() {
     joystick.hidden = mode !== 'playing' || !touch.matches;
   }
 
-  function refreshCameraToggle() {
-    cameraToggle.textContent = thirdPerson ? 'TPS' : 'FPS';
-    cameraToggle.setAttribute('aria-pressed', String(thirdPerson));
+  function refreshReticle() {
     byId('reticle').hidden = mode !== 'playing' || thirdPerson;
   }
 
@@ -345,7 +352,7 @@ async function init() {
     thirdPerson = !thirdPerson;
     chaseDistance = undefined;
     if (!thirdPerson) player.rotation.y = yaw + Math.PI;
-    refreshCameraToggle();
+    refreshReticle();
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
   }
@@ -378,9 +385,8 @@ async function init() {
     clearStick();
     measurements.group.visible = mode === 'playing' && measurementsEnabled;
     pause.hidden = mode !== 'playing';
-    cameraToggle.hidden = mode !== 'playing';
     restart.hidden = mode !== 'paused';
-    refreshCameraToggle();
+    refreshReticle();
     refreshControls();
     dirty = true;
   }
@@ -432,7 +438,6 @@ async function init() {
   }
 
   play.addEventListener('click', start);
-  cameraToggle.addEventListener('click', switchCamera);
   lighting.addEventListener('click', updateLighting);
   pause.addEventListener('click', pauseWalk);
   restart.addEventListener('click', () => {
@@ -523,7 +528,7 @@ async function init() {
   });
 
   canvas.hidden = false;
-  play.disabled = lighting.disabled = cameraToggle.disabled = false;
+  play.disabled = lighting.disabled = false;
   resetPlayer();
   resize();
   changeMode('ready');

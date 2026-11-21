@@ -6,11 +6,11 @@
   <meta name="theme-color" content="#192024">
   <meta name="description" content="Járd be a Blenderben készült berendezett szobát belső vagy külső nézetből.">
   <title>3D Szoba · Szobabejárás</title>
-  <link rel="stylesheet" href="./style.css?v=4">
+  <link rel="stylesheet" href="./style.css?v=5">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js?v=8"></script>
+  <script type="module" src="./room.js?v=9"></script>
 </head>
 <body data-mode="ready">
   <main class="layout">
@@ -38,15 +38,9 @@
       </div>
 
       <div class="controls" aria-label="Irányítás" data-i18n-label="controls">
-        <div class="desktop-controls">
-          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span data-i18n="move">Mozgás</span></div>
-          <div class="control-row"><span><kbd>Shift</kbd></span><span data-i18n="run">Futás</span></div>
-          <div class="control-row"><span class="control-device" data-i18n="mouse">Egér</span><span data-i18n="look">Körülnézés</span></div>
-          <div class="control-row"><span><kbd>V</kbd></span><span data-i18n="switchView">Nézetváltás</span></div>
-          <div class="control-row"><span><kbd>Q</kbd></span><span data-i18n="toggleMeasurements">Méretek ki/be</span></div>
-          <div class="control-row"><span><kbd>E</kbd></span><span data-i18n="toggleLighting">Nappal / éjszaka</span></div>
-          <div class="control-row"><span><kbd>Esc</kbd></span><span data-i18n="pause">Szünet</span></div>
-        </div>
+        <p class="desktop-controls" data-i18n="playHint">WASD / nyilak mozgás · Shift futás
+Egér körülnézés · Esc szünet
+Q méretek · V nézet · E fényváltás</p>
         <p class="touch-controls" data-i18n="touchControls">Mozgás a virtuális karral. A körülnézéshez húzd el a képet.</p>
       </div>
     </aside>
@@ -58,7 +52,6 @@
           <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Szünet</span>
         </button>
         <div class="stage-tools">
-          <button class="scene-button" id="camera-toggle" type="button" aria-label="Külső nézet (TPS)" data-i18n-label="thirdPerson" aria-pressed="false" aria-keyshortcuts="V" disabled hidden>FPS</button>
           <button class="scene-button" id="lighting" type="button" aria-pressed="false" aria-keyshortcuts="E" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20.5 15.7a8.8 8.8 0 0 1-12.2-12 9 9 0 1 0 12.2 12Z"
