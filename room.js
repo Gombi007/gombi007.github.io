@@ -1,16 +1,14 @@
 import * as THREE from 'three';
-import { OrbitControls } from './vendor/controls/OrbitControls.js';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { canStand, move } from './movement.js?v=2';
-import { formatMeasures, messages } from './translations.js';
+import { canStand, move } from './movement.js?v=3';
+import { formatMeasures, messages } from './translations.js?v=2';
 
 const byId = (id) => document.getElementById(id);
-const stage = byId('stage');
 const viewport = byId('viewport');
 const play = byId('play');
 const lighting = byId('lighting');
-const showOverview = byId('overview');
+const cameraToggle = byId('camera-toggle');
 const pause = byId('pause');
 const restart = byId('restart');
 const joystick = byId('joystick');
@@ -51,7 +49,6 @@ function applyLanguage() {
     byId('play-label').textContent = text(loadFailure ? 'unavailable' : 'loading');
     byId('intro-copy').textContent = text('intro');
     byId('lighting-label').textContent = text('evening');
-    byId('stage-tip').textContent = text(touch.matches ? 'orbitTouch' : 'orbit');
   }
   if (loadFailure) byId('load-error').textContent = text(loadFailure);
   refreshLanguage();
@@ -87,37 +84,51 @@ async function init() {
   viewport.append(canvas);
   canvas.hidden = true;
 
-  const [{ scene: model }, measures] = await Promise.all([
-    new GLTFLoader().loadAsync(new URL('./assets/room.glb?v=3', import.meta.url).href),
+  const loader = new GLTFLoader();
+  const [{ scene: model }, measures, avatar] = await Promise.all([
+    loader.loadAsync(new URL('./assets/room.glb?v=3', import.meta.url).href),
     fetch(new URL('./assets/dimensions.json?v=3', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),
+    loader.loadAsync(new URL('./assets/player.glb?v=1', import.meta.url).href),
   ]);
   const scale = measures.scale;
-  roomSize = measures.items.find((item) => item.id === 'room').dimensions.slice(0, 2);
+  const [roomWidth, roomDepth, roomHeight] = measures.items.find((item) => item.id === 'room').dimensions;
+  roomSize = [roomWidth, roomDepth];
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xd2d3cc);
-  const cutaway = new THREE.PerspectiveCamera(36, 1, 0.025 * scale, 100 * scale);
   const eye = new THREE.PerspectiveCamera(61, 1, 0.028 * scale, 45 * scale);
   eye.rotation.order = 'YXZ';
-  const spawn = new THREE.Vector3(1.45, 1.56, 0.40).multiplyScalar(scale);
-  const overviewDirection = new THREE.Vector3(-6.33, 2.46, 0.37).normalize();
-  const orbit = new OrbitControls(cutaway, canvas);
-  orbit.target.set(1.45, 1.02, 2.05).multiplyScalar(scale);
-  orbit.enableDamping = true;
-  orbit.enablePan = false;
-  orbit.minDistance = 2.9 * scale;
-  orbit.maxDistance = 22 * scale;
-  orbit.minPolarAngle = 0.16;
-  orbit.maxPolarAngle = Math.PI * 0.48;
-  orbit.enabled = false;
+  const chase = new THREE.PerspectiveCamera(63, 1, 0.028 * scale, 45 * scale);
+  const playerLayer = 1;
+  const eyeHeight = 1.64 * scale;
+  const spawn = new THREE.Vector3(1.45, 0, 0.40).multiplyScalar(scale);
+  chase.layers.enable(playerLayer);
+
+  const player = new THREE.Group();
+  avatar.scene.scale.setScalar(scale);
+  avatar.scene.traverse((object) => {
+    if (!object.isMesh) return;
+    object.layers.set(playerLayer);
+    object.castShadow = true;
+    object.receiveShadow = true;
+  });
+  player.add(avatar.scene);
+  scene.add(player);
+  const mixer = new THREE.AnimationMixer(avatar.scene);
+  const idle = mixer.clipAction(THREE.AnimationClip.findByName(avatar.animations, 'Idle'));
+  const walk = mixer.clipAction(THREE.AnimationClip.findByName(avatar.animations, 'Walk'));
+  idle.play();
+  mixer.update(0);
+  let activeAction = idle;
 
   const hemisphere = new THREE.HemisphereLight(0xf0f6ff, 0x87755e, 1.9);
   const sun = new THREE.DirectionalLight(0xfff1dd, 2.35);
   sun.position.set(-1.15, 6.1, 1.1).multiplyScalar(scale);
   sun.target.position.set(1.45, 0, 2.05).multiplyScalar(scale);
   sun.castShadow = true;
+  sun.shadow.camera.layers.enable(playerLayer);
   Object.assign(sun.shadow.camera, {
     left: -3.6 * scale, right: 3.6 * scale, bottom: -3.6 * scale, top: 3.6 * scale,
     far: 16 * scale,
@@ -139,7 +150,6 @@ async function init() {
   if (!floor) throw new Error('The room export could not locate its floor.');
   const bounds = new THREE.Box3().setFromObject(floor);
   const obstacles = [];
-  const enclosure = [];
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0xe1eef6, roughness: 0.12, opacity: 0.14, transparent: true,
     depthWrite: false, metalness: 0,
@@ -148,7 +158,6 @@ async function init() {
   model.traverse((object) => {
     const role = object.userData.roomRole;
     if (role === 'collision') obstacles.push(new THREE.Box3().setFromObject(object));
-    if (role === 'enclosure') enclosure.push(object);
     if (!object.isMesh) return;
     object.castShadow = object !== floor && role !== 'glass' && role !== 'mirror';
     object.receiveShadow = role !== 'glass';
@@ -159,7 +168,7 @@ async function init() {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     }
   });
-  if (obstacles.length !== 6 || enclosure.length !== 10 ||
+  if (obstacles.length !== 6 ||
       Math.abs(bounds.max.x - bounds.min.x - roomSize[0]) > 0.01 ||
       !canStand(spawn.x, spawn.z, bounds, obstacles, scale)) {
     throw new Error('The exported room is missing its walkthrough layout.');
@@ -174,11 +183,26 @@ async function init() {
     mirror.position.copy(box.getCenter(new THREE.Vector3()));
     mirror.position.x = box.min.x - 0.003 * scale;
     mirror.rotateY(-Math.PI / 2);
+    mirror.camera.layers.enable(playerLayer);
     mirrorMesh.visible = false;
     scene.add(mirror);
   }
 
-  let mode = 'overview';
+  spawn.y = bounds.max.y;
+  const cameraPadding = 0.11 * scale;
+  const roomCameraBounds = bounds.clone();
+  roomCameraBounds.min.y = spawn.y;
+  roomCameraBounds.max.y = spawn.y + roomHeight * scale;
+  roomCameraBounds.expandByScalar(-cameraPadding);
+  const cameraObstacles = obstacles.map((box) => box.clone().expandByScalar(cameraPadding));
+  const cameraRay = new THREE.Ray();
+  const cameraHit = new THREE.Vector3();
+  const cameraPivot = new THREE.Vector3();
+  const cameraPosition = new THREE.Vector3();
+  const cameraAngles = [0, Math.PI / 3, -Math.PI / 3, Math.PI * 2 / 3, -Math.PI * 2 / 3, Math.PI];
+
+  let mode = 'ready';
+  let thirdPerson = false;
   let evening = false;
   let dirty = true;
   let locked = false;
@@ -250,18 +274,40 @@ async function init() {
     dimensionToggle.focus();
   });
 
-  function fitOverview(recenter) {
-    const vertical = Math.tan(THREE.MathUtils.degToRad(cutaway.fov / 2));
-    const distance = Math.min(orbit.maxDistance,
-      Math.max(6.9, 2.72 / (vertical * cutaway.aspect)) * scale);
-    if (recenter) {
-      cutaway.position.copy(orbit.target).addScaledVector(overviewDirection, distance);
-    } else {
-      const delta = cutaway.position.clone().sub(orbit.target);
-      if (delta.length() < distance) cutaway.position.copy(orbit.target).add(delta.setLength(distance));
+  function updateCameras() {
+    eye.position.copy(player.position);
+    eye.position.y += eyeHeight;
+    if (!thirdPerson) return;
+
+    cameraPivot.copy(player.position);
+    cameraPivot.y += 0.98 * scale;
+    cameraRay.origin.copy(cameraPivot);
+    const shoulder = 0.27;
+    const elevation = 0.58 - Math.sin(eye.rotation.x) * 1.35;
+    let bestDistance = -1;
+    // Try nearby angles when walls or furniture crowd the camera.
+    for (const angle of cameraAngles) {
+      const yaw = eye.rotation.y + angle;
+      const sin = Math.sin(yaw);
+      const cos = Math.cos(yaw);
+      cameraRay.direction.set(1.85 * sin + shoulder * cos, elevation, 1.85 * cos - shoulder * sin);
+      let distance = cameraRay.direction.length() * scale;
+      cameraRay.direction.normalize();
+      if (cameraRay.intersectBox(roomCameraBounds, cameraHit)) {
+        distance = Math.min(distance, cameraHit.distanceTo(cameraPivot));
+      }
+      for (const box of cameraObstacles) {
+        if (!box.containsPoint(cameraPivot) && cameraRay.intersectBox(box, cameraHit)) {
+          distance = Math.min(distance, cameraHit.distanceTo(cameraPivot));
+        }
+      }
+      if (distance <= bestDistance) continue;
+      bestDistance = distance;
+      cameraRay.at(distance, cameraPosition);
+      if (distance >= 1.18 * scale) break;
     }
-    orbit.update();
-    dirty = true;
+    chase.position.copy(cameraPosition);
+    chase.lookAt(cameraPivot);
   }
 
   function resize() {
@@ -269,31 +315,49 @@ async function init() {
     const height = viewport.clientHeight;
     if (!width || !height) return;
     renderer.setSize(width, height, false);
-    cutaway.aspect = eye.aspect = width / height;
+    chase.aspect = eye.aspect = width / height;
     eye.fov = width / height < 1 ? 76 : 61;
-    cutaway.updateProjectionMatrix();
+    chase.fov = width / height < 1 ? 77 : 63;
+    chase.updateProjectionMatrix();
     eye.updateProjectionMatrix();
-    if (mode === 'overview') fitOverview(false);
     dirty = true;
   }
 
   function aim(deltaX, deltaY) {
     eye.rotation.y -= deltaX * 0.0025;
     eye.rotation.x = THREE.MathUtils.clamp(eye.rotation.x - deltaY * 0.0025, -1.38, 1.38);
+    if (!thirdPerson) player.rotation.y = eye.rotation.y + Math.PI;
     dirty = true;
   }
 
-  function resetEye() {
-    eye.position.copy(spawn);
+  function resetPlayer() {
+    player.position.copy(spawn);
+    player.rotation.y = 0;
     eye.rotation.set(-0.075, Math.PI, 0);
+    renderer.shadowMap.needsUpdate = true;
     dirty = true;
   }
 
   function refreshTip() {
-    const tip = mode === 'overview' ? (touch.matches ? 'orbitTouch' : 'orbit')
-      : mode === 'paused' ? 'paused' : touch.matches ? 'looking' : locked ? 'escape' : 'dragEscape';
-    byId('stage-tip').textContent = text(tip);
+    const stageTip = byId('stage-tip');
+    stageTip.hidden = mode === 'ready';
+    const tip = mode === 'paused' ? 'paused' : touch.matches ? 'looking' : locked ? 'escape' : 'dragEscape';
+    stageTip.textContent = text(tip);
     joystick.hidden = mode !== 'playing' || !touch.matches;
+  }
+
+  function refreshCameraToggle() {
+    cameraToggle.textContent = thirdPerson ? 'TPS' : 'FPS';
+    cameraToggle.setAttribute('aria-pressed', String(thirdPerson));
+    byId('reticle').hidden = mode !== 'playing' || thirdPerson;
+  }
+
+  function switchCamera() {
+    thirdPerson = !thirdPerson;
+    if (!thirdPerson) player.rotation.y = eye.rotation.y + Math.PI;
+    refreshCameraToggle();
+    renderer.shadowMap.needsUpdate = true;
+    dirty = true;
   }
 
   function refreshControls() {
@@ -324,23 +388,14 @@ async function init() {
     keys.clear();
     lookPointer = null;
     clearStick();
-    const inside = mode !== 'overview';
-    const playing = mode === 'playing';
-    enclosure.forEach((object) => { object.visible = inside; });
-    orbit.enabled = !inside;
-    pause.hidden = !playing;
-    showOverview.hidden = mode !== 'paused';
+    pause.hidden = mode !== 'playing';
     restart.hidden = mode !== 'paused';
-    byId('view-label').hidden = inside;
-    byId('reticle').hidden = !playing;
+    refreshCameraToggle();
     refreshControls();
-    renderer.shadowMap.needsUpdate = true;
-    if (mode === 'overview') fitOverview(true);
     dirty = true;
   }
 
   function start() {
-    if (mode === 'overview') resetEye();
     showDimensions(false);
     changeMode('playing');
     canvas.focus({ preventScroll: true });
@@ -375,16 +430,12 @@ async function init() {
   }
 
   play.addEventListener('click', start);
+  cameraToggle.addEventListener('click', switchCamera);
   lighting.addEventListener('click', updateLighting);
   pause.addEventListener('click', pauseWalk);
   restart.addEventListener('click', () => {
-    resetEye();
+    resetPlayer();
     start();
-  });
-  showOverview.addEventListener('click', () => {
-    changeMode('overview');
-    if (document.pointerLockElement === canvas) document.exitPointerLock();
-    play.focus({ preventScroll: true });
   });
   document.addEventListener('pointerlockchange', () => {
     const wasLocked = locked;
@@ -399,6 +450,11 @@ async function init() {
   });
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'KeyV') {
+      event.preventDefault();
+      if (!event.repeat) switchCamera();
+      return;
+    }
     if (event.code === 'KeyM' && !event.repeat) {
       showDimensions(dimensionPanel.hidden);
       return;
@@ -465,11 +521,10 @@ async function init() {
   });
 
   canvas.hidden = false;
-  stage.classList.add('is-ready');
-  play.disabled = lighting.disabled = dimensionToggle.disabled = false;
-  resetEye();
+  play.disabled = lighting.disabled = dimensionToggle.disabled = cameraToggle.disabled = false;
+  resetPlayer();
   resize();
-  changeMode('overview');
+  changeMode('ready');
   applyLanguage();
   const observer = new ResizeObserver(resize);
   observer.observe(viewport);
@@ -481,16 +536,34 @@ async function init() {
     if (mode === 'playing') {
       const side = stickSide + held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft');
       const forward = stickForward + held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown');
+      const speed = held('ShiftLeft', 'ShiftRight') ? 2.35 : 1.55;
+      const { x, z } = player.position;
       if (side || forward) {
-        const speed = held('ShiftLeft', 'ShiftRight') ? 2.35 : 1.55;
-        move(eye.position, eye.rotation.y, side, forward, delta * speed * scale, bounds, obstacles, scale);
-        dirty = true;
+        move(player.position, eye.rotation.y, side, forward, delta * speed * scale, bounds, obstacles, scale);
       }
-    } else if (mode === 'overview') {
-      dirty = orbit.update() || dirty;
+      const dx = player.position.x - x;
+      const dz = player.position.z - z;
+      const distance = Math.hypot(dx, dz);
+      const nextAction = distance > 0 ? walk : idle;
+      if (activeAction !== nextAction) {
+        activeAction.fadeOut(0.14);
+        nextAction.reset().fadeIn(0.14).play();
+        activeAction = nextAction;
+      }
+      if (distance > 0) {
+        walk.timeScale = Math.max(0.45, distance / (delta * 1.55 * scale));
+        if (thirdPerson) {
+          const turn = Math.atan2(dx, dz) - player.rotation.y;
+          player.rotation.y += Math.atan2(Math.sin(turn), Math.cos(turn)) * Math.min(1, delta * 14);
+        }
+      }
+      mixer.update(delta);
+      if (thirdPerson) renderer.shadowMap.needsUpdate = true;
+      dirty = true;
     }
     if (!dirty) return;
-    renderer.render(scene, mode === 'overview' ? cutaway : eye);
+    updateCameras();
+    renderer.render(scene, thirdPerson ? chase : eye);
     dirty = false;
   });
 }

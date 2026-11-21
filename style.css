@@ -98,13 +98,10 @@ kbd {
   min-height: 100svh;
   isolation: isolate;
   overflow: hidden;
-  background: #bbbcb8 url("./assets/room-preview.webp") center / contain no-repeat;
+  background: #192024;
 }
-.stage.is-ready { background: #d2d3cc; }
 .viewport { position: absolute; inset: 0; touch-action: none; }
 canvas { display: block; width: 100%; height: 100%; }
-body[data-mode="overview"] canvas { cursor: grab; }
-body[data-mode="overview"] canvas:active { cursor: grabbing; }
 .stage-top {
   position: absolute;
   inset: 24px 24px auto;
@@ -115,16 +112,15 @@ body[data-mode="overview"] canvas:active { cursor: grabbing; }
   pointer-events: none;
 }
 .stage-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-.view-label, .scene-button, .stage-tip {
+.scene-button, .stage-tip {
   color: #fff9ef;
   background: #192024ed;
   border: 1px solid #ffffff30;
   border-radius: 8px;
   font-size: .875rem;
 }
-.view-label, .scene-button { min-height: 42px; padding: 9px 13px; }
-.view-label { align-content: center; }
-.scene-button { display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+.scene-button { display: flex; gap: 8px; align-items: center; min-height: 42px; padding: 9px 13px; pointer-events: auto; }
+#camera-toggle { justify-content: center; min-width: 50px; }
 .scene-button:hover, .scene-button[aria-pressed="true"] { background: #3a3d35; color: #ffe0aa; }
 .scene-button:disabled { opacity: .6; }
 .language {
@@ -254,7 +250,6 @@ body[data-mode="playing"] .stage { height: 100svh; }
   .stage-top { inset: 12px 12px auto; }
   .stage-tip { bottom: 12px; }
   body[data-mode="playing"] .stage-tip { bottom: 16px; left: auto; right: 12px; translate: 0; }
-  .view-label { display: none; }
   .stage-tools { gap: 5px; }
   .stage-top { gap: 5px; align-items: flex-start; }
   .scene-button { padding-inline: 8px; }

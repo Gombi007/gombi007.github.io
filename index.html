@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#192024">
-  <meta name="description" content="Explore a furnished 3D room in first person, built from the Blender model.">
+  <meta name="description" content="Explore a furnished Blender room in first or third person.">
   <title>3D Room · Room Walkthrough</title>
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js?v=3"></script>
+  <script type="module" src="./room.js?v=4"></script>
 </head>
-<body data-mode="overview">
+<body data-mode="ready">
   <main class="layout">
     <aside class="panel" id="panel" aria-label="Walkthrough menu" data-i18n-label="menu">
       <div class="brand">
@@ -28,7 +28,7 @@
       <div class="intro">
         <h1 data-i18n="title">3D Room</h1>
         <p class="room-size" id="room-size">2.90 × 4.10 m</p>
-        <p class="intro-copy" id="intro-copy">Take a first-person walk through the furnished room.</p>
+        <p class="intro-copy" id="intro-copy">Walk through the furnished room in first or third person.</p>
         <button class="play" id="play" type="button" disabled>
           <span class="play-icon" aria-hidden="true"></span>
           <span id="play-label">Loading room…</span>
@@ -41,6 +41,7 @@
         <div class="desktop-controls">
           <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span data-i18n="move">Move</span></div>
           <div class="control-row"><span class="control-device" data-i18n="mouse">Mouse</span><span data-i18n="look">Look around</span></div>
+          <div class="control-row"><span><kbd>V</kbd></span><span data-i18n="switchView">Switch camera</span></div>
           <div class="control-row"><span><kbd>Esc</kbd></span><span data-i18n="pause">Pause</span></div>
         </div>
         <p class="touch-controls" data-i18n="touchControls">Use the joystick to move. Drag the room to look around.</p>
@@ -66,8 +67,8 @@
         <button class="scene-button" id="pause" type="button" hidden>
           <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Pause</span>
         </button>
-        <span class="view-label" id="view-label" data-i18n="cutaway">Cutaway</span>
         <div class="stage-tools">
+          <button class="scene-button" id="camera-toggle" type="button" aria-label="Third-person view (TPS)" data-i18n-label="thirdPerson" aria-pressed="false" aria-keyshortcuts="V" disabled>FPS</button>
           <button class="scene-button" id="dimensions-toggle" type="button" aria-controls="dimensions-panel" aria-pressed="false" aria-keyshortcuts="M" data-i18n="dimensions" disabled>Dimensions</button>
           <button class="scene-button" id="lighting" type="button" aria-pressed="false" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -76,7 +77,6 @@
             </svg>
             <span id="lighting-label">Evening</span>
           </button>
-          <button class="scene-button" id="overview" type="button" data-i18n="overview" hidden>Room overview</button>
           <div class="language" role="group" aria-label="Language" data-i18n-label="language">
             <button type="button" data-lang="en" aria-label="English" aria-pressed="true">EN</button>
             <button type="button" data-lang="hu" lang="hu" aria-label="Magyar" aria-pressed="false">HU</button>
@@ -84,7 +84,7 @@
         </div>
       </div>
 
-      <p class="stage-tip" id="stage-tip">Drag to orbit · Scroll to zoom</p>
+      <p class="stage-tip" id="stage-tip" hidden></p>
       <div class="reticle" id="reticle" hidden aria-hidden="true"></div>
       <div class="joystick" id="joystick" hidden aria-hidden="true">
         <span id="joystick-knob"></span>

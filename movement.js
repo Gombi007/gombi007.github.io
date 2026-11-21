@@ -1,4 +1,4 @@
-const RADIUS = 0.15;
+const RADIUS = 0.22;
 const SWEEP_STEP = 0.045;
 
 export function canStand(x, z, room, obstacles, scale = 1) {
