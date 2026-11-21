@@ -42,7 +42,7 @@ Start with **Play**. The player spawns in the passage at approximately `(1.45, 0
 | **1–5** | Light grey, blue, green, medium-dark grey, or dark grey paint |
 | **6–9** | Cool, neutral, gently warm, or original warm laminate |
 
-Touch input uses the on-screen joystick and drag-to-look. Keep the three control groups, individual **W**, **A**, **S**, **D** and number keycaps, and translated labels in both languages when changing shortcuts.
+Touch input uses the on-screen joystick and drag-to-look. During play, the touch-only controls switch cameras, cycle wall and floor presets, and request native fullscreen with a viewport-filling fallback. The touch movement hint closes after one second. Keep the three desktop control groups, individual **W**, **A**, **S**, **D** and number keycaps, and translated labels in both languages when changing shortcuts.
 
 The player is a 1.75 m barefoot male avatar modeled at an estimated 80 kg. The runtime uses a 1.64 m eye height, 1.55 m/s walking speed, and 2.35 m/s running speed. Preserve the `Player Rig` and exported `Idle` and `Walk` clips. The `Walk` loop lasts approximately 1.04 seconds. Third-person camera collision shortens the camera distance immediately at obstacles and eases it back out while preserving mouse yaw and pitch.
 

@@ -28,7 +28,7 @@ python -m http.server 8000
 | **1–5** | Select light grey, blue, green, medium-dark grey, or dark grey walls |
 | **6–9** | Change the laminate from cool to warm. **9** restores the original finish. |
 
-On a touch screen, use the joystick to move and drag to look around. The lighting and **Music** buttons also work by touch.
+On a touch screen, use the joystick to move and drag to look around. Tap **FPS/TPS** to switch views, **Wall** or **Floor** to cycle colors, and the fullscreen icon to expand the tour. The lighting and **Music** buttons also work by touch. The in-game movement hint closes after one second.
 
 ## Blender files
 

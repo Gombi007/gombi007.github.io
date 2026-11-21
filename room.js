@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=9';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=10';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=11';
+import { formatMeasures, messages } from './translations.js?v=12';
 import { createTourAudio } from './tour-audio.js?v=2';
 
 const byId = (id) => document.getElementById(id);
@@ -14,6 +14,9 @@ const musicButton = byId('music');
 const pause = byId('pause');
 const restart = byId('restart');
 const joystick = byId('joystick');
+const mobileTools = byId('mobile-tools');
+const mobileCamera = byId('mobile-camera');
+const mobileFullscreen = byId('mobile-fullscreen');
 const touch = matchMedia('(pointer: coarse)');
 const entranceYaw = Math.PI;
 const entrancePitch = -0.075;
@@ -329,6 +332,10 @@ async function init() {
   let stickForward = 0;
   let measurementsEnabled = false;
   let fullscreenPending = false;
+  let touchHintVisible = false;
+  let touchHintTimer;
+  let wallPreset = '4';
+  let floorPreset = '9';
   const keys = new Set();
   const measurements = createMeasurementLayer(measures, furnitureFrames);
   measurements.group.traverse((object) => object.layers.set(measurementLayer));
@@ -404,11 +411,25 @@ async function init() {
 
   function refreshTip() {
     const stageTip = byId('stage-tip');
-    stageTip.hidden = mode === 'ready';
+    const touchPlaying = mode === 'playing' && touch.matches;
+    stageTip.hidden = mode === 'ready' || (touchPlaying && !touchHintVisible);
     const tip = mode === 'paused' ? 'paused' : touch.matches ? 'touchHint' : locked ? 'playHint' : 'dragHint';
-    if (tip === 'playHint' || tip === 'dragHint') showKeyboardHint(stageTip, tip);
-    else stageTip.textContent = text(tip);
-    joystick.hidden = mode !== 'playing' || !touch.matches;
+    if (!stageTip.hidden) {
+      if (tip === 'playHint' || tip === 'dragHint') showKeyboardHint(stageTip, tip);
+      else stageTip.textContent = text(tip);
+    }
+    joystick.hidden = mobileTools.hidden = !touchPlaying;
+  }
+
+  function startTouchHint() {
+    clearTimeout(touchHintTimer);
+    touchHintVisible = mode === 'playing' && touch.matches;
+    if (touchHintVisible) {
+      touchHintTimer = setTimeout(() => {
+        touchHintVisible = false;
+        refreshTip();
+      }, 1000);
+    }
   }
 
   function refreshReticle() {
@@ -417,6 +438,8 @@ async function init() {
 
   function switchCamera() {
     thirdPerson = !thirdPerson;
+    mobileCamera.setAttribute('aria-pressed', String(thirdPerson));
+    byId('camera-mode').textContent = thirdPerson ? 'TPS' : 'FPS';
     chaseDistance = undefined;
     if (!thirdPerson) player.rotation.y = yaw + Math.PI;
     refreshReticle();
@@ -446,6 +469,7 @@ async function init() {
 
   function changeMode(next) {
     mode = next;
+    startTouchHint();
     audio.setPlaying(mode === 'playing');
     document.body.dataset.mode = mode;
     keys.clear();
@@ -487,17 +511,47 @@ async function init() {
     play.focus({ preventScroll: true });
   }
 
+  function isNativeFullscreen() {
+    return (document.fullscreenElement ?? document.webkitFullscreenElement) === document.documentElement;
+  }
+
+  function refreshFullscreen() {
+    const expanded = isNativeFullscreen() || document.body.classList.contains('mobile-fullscreen');
+    mobileFullscreen.setAttribute('aria-pressed', String(expanded));
+    resize();
+  }
+
+  function setMobileFullscreen(active) {
+    document.body.classList.toggle('mobile-fullscreen', active);
+    refreshFullscreen();
+  }
+
   async function toggleFullscreen() {
-    if (fullscreenPending || !document.fullscreenEnabled) return;
+    if (fullscreenPending) return;
+    if (document.body.classList.contains('mobile-fullscreen')) {
+      setMobileFullscreen(false);
+      return;
+    }
+    const root = document.documentElement;
+    const standard = document.fullscreenEnabled && root.requestFullscreen;
+    const webkit = document.webkitFullscreenEnabled && root.webkitRequestFullscreen;
+    if (!standard && !webkit && !isNativeFullscreen()) {
+      if (touch.matches && mode === 'playing') setMobileFullscreen(true);
+      return;
+    }
     fullscreenPending = true;
     try {
-      if (document.fullscreenElement === document.documentElement) {
+      if (document.fullscreenElement === root) {
         await document.exitFullscreen();
+      } else if (isNativeFullscreen()) {
+        await document.webkitExitFullscreen();
+      } else if (standard) {
+        await root.requestFullscreen({ navigationUI: 'hide' });
       } else {
-        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+        await root.webkitRequestFullscreen();
       }
     } catch {
-      // Keep the current view if the browser declines the request.
+      if (touch.matches && mode === 'playing' && !isNativeFullscreen()) setMobileFullscreen(true);
     } finally {
       fullscreenPending = false;
     }
@@ -527,6 +581,8 @@ async function init() {
       if (color === null) paint.color.copy(original.color);
       else paint.color.setHex(color);
     }
+    wallPreset = key;
+    byId('wall-preset').textContent = key;
     dirty = true;
   }
 
@@ -535,6 +591,8 @@ async function init() {
     for (const [material, originalColor] of floorFinishes) {
       material.color.copy(originalColor).multiply(tint);
     }
+    floorPreset = key;
+    byId('floor-preset').textContent = key;
     dirty = true;
   }
 
@@ -542,9 +600,18 @@ async function init() {
     musicButton.setAttribute('aria-pressed', String(audio.toggleMusic()));
   }
 
+  function nextPreset(presets, current) {
+    const keys = Object.keys(presets);
+    return keys[(keys.indexOf(current) + 1) % keys.length];
+  }
+
   play.addEventListener('click', start);
   lighting.addEventListener('click', () => setLighting(!night));
   musicButton.addEventListener('click', toggleMusic);
+  mobileCamera.addEventListener('click', switchCamera);
+  mobileFullscreen.addEventListener('click', toggleFullscreen);
+  byId('mobile-wall').addEventListener('click', () => changeWallPaint(nextPreset(wallColors, wallPreset)));
+  byId('mobile-floor').addEventListener('click', () => changeFloorTint(nextPreset(floorTints, floorPreset)));
   pause.addEventListener('click', pauseWalk);
   restart.addEventListener('click', () => {
     resetPlayer();
@@ -558,7 +625,8 @@ async function init() {
     refreshTip();
   });
   document.addEventListener('pointerlockerror', refreshTip);
-  document.addEventListener('fullscreenchange', resize);
+  document.addEventListener('fullscreenchange', refreshFullscreen);
+  document.addEventListener('webkitfullscreenchange', refreshFullscreen);
   canvas.addEventListener('mousemove', (event) => {
     if (document.pointerLockElement === canvas && mode === 'playing') {
       aim(event.movementX, event.movementY);
@@ -566,7 +634,7 @@ async function init() {
   });
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.code === 'KeyF' && (mode === 'playing' || document.fullscreenElement === document.documentElement)) {
+    if (event.code === 'KeyF' && (mode === 'playing' || isNativeFullscreen())) {
       event.preventDefault();
       if (!event.repeat) toggleFullscreen();
       return;
@@ -607,7 +675,11 @@ async function init() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pauseWalk();
   });
-  touch.addEventListener('change', refreshTip);
+  touch.addEventListener('change', () => {
+    if (!touch.matches) setMobileFullscreen(false);
+    startTouchHint();
+    refreshTip();
+  });
 
   canvas.addEventListener('pointerdown', (event) => {
     if (mode !== 'playing' || locked || lookPointer || event.button !== 0) return;

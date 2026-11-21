@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { messages } from './translations.js?v=11';
+import { messages } from './translations.js?v=12';
 
 const ink = 0xffdf40;
 const furnitureWidthAxis = { bed: 2, wardrobe: 2, cabinet: 2, desk: 2, heater: 0, shelves: 2 };
