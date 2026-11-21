@@ -1,25 +1,41 @@
-# 3D Blender Preview
+# 3D Szoba Walkthrough
 
-An interactive browser walkthrough of the furnished 3D Szoba room. The geometry in `assets/room.glb` was exported from the Blender scene at its original scale. The room measures 2.90 × 4.10 m, with 2.60 m walls.
+Explore a furnished Blender room in first or third person. The room measures **2.90 × 4.10 m**, with **2.60 m** walls. Select **Play** to start in the **2.90 × 4.00 m** entrance passage, then walk through the open door. [Play the walkthrough](https://gombi007.github.io/)
 
-The [editable room](blender/3D%20Szoba%20V56.blend) is saved in `blender/`. Open **04 · Dimensions** in Blender for the annotated floor plan.
-
-The [editable player](blender/Walkthrough%20Player.blend) is a separate Blender file created with the MakeHuman Plugin for Blender (MPFB). The character is 1.75 m tall barefoot and modeled on an estimated body mass of 80 kg. The browser uses the rigged export at `assets/player.glb`.
+The tour starts in Hungarian with night lighting, wall color **4**, and the original warm laminate floor. Use **EN** or **HU** to change the language. Original laminate footsteps and a royalty-free light trance loop play during the tour.
 
 ## Run locally
 
-Serve this folder over HTTP, then open [localhost:8000](http://localhost:8000) in a WebGL 2 browser.
+From the repository root, start a local HTTP server. Then open the tour in a WebGL 2 browser. [Local walkthrough](http://localhost:8000/)
 
 ```sh
 python -m http.server 8000
 ```
 
-Select **Play** to start in the 2.90 m wide, 4.00 m deep entrance passage. Walk forward through the door to enter the room. Use **WASD** or the arrow keys to walk, **Shift** to run, the mouse to look, **V** to switch cameras, and **Esc** to pause. Press **E** to switch between daylight and the ceiling lamp at night. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick to move, drag to look, and tap the lighting button to switch lighting.
+## Controls
 
-Use **EN** or **HU** to switch languages. Press **Q** during play to toggle measurement lines and labels, and **F** to toggle fullscreen. Use **1–5** to select light grey, blue, green, medium-dark grey, or dark grey walls. Use **6–9** to change the laminate floor from cool to warm. **9** restores the original warm finish.
+| Input | Action |
+| --- | --- |
+| **WASD** or arrow keys | Walk |
+| **Shift** | Run |
+| Mouse | Look around, or drag if pointer lock is unavailable |
+| **V** | Switch between first and third person |
+| **F** | Toggle fullscreen |
+| **Esc** | Pause |
+| **Q** | Show or hide measurement rulers and labels |
+| **E** | Switch between daylight and night lighting |
+| **M** | Toggle music while keeping footsteps audible |
+| **1–5** | Select light grey, blue, green, medium-dark grey, or dark grey walls |
+| **6–9** | Change the laminate from cool to warm. **9** restores the original finish. |
 
-The walkthrough includes original laminate footsteps and a royalty-free light trance loop composed for this project. Press **M** or select **Music** to toggle the soundtrack during play. Footsteps are independent of the music setting.
+On a touch screen, use the joystick to move and drag to look around. The lighting and **Music** buttons also work by touch.
 
-The repo root can be served directly by GitHub Pages from the `main` branch. Three.js r180 and the needed addons are included under `vendor/` with their MIT license. The site makes no third-party requests at runtime.
+## Blender files
 
-[Original V56 demo](https://nagynorbertbf-sudo.github.io/3D-szoba/threejs-szoba-v56-demo.html)
+- The editable room includes the passage, furniture, and placed props. Open **04 · Dimensions** in Blender for the annotated floor plan. [3D Szoba V56.blend](blender/3D%20Szoba%20V56.blend)
+- The MakeHuman player is 1.75 m tall barefoot and modeled at an estimated 80 kg. The tour uses the rigged export in `assets/player.glb`. [Walkthrough Player.blend](blender/Walkthrough%20Player.blend)
+- The yellow miniature forklift and three pallets on the corner shelf are also available as a separate editable model. [Miniature Forklift.blend](blender/Miniature%20Forklift.blend)
+
+The tour uses `assets/room.glb` for the scene and `assets/dimensions.json` for its measurements. The recreation guide covers the file layout, Blender export workflow, and runtime metadata to preserve. [Recreation guide](AGENTS.md)
+
+The repository root on `main` is published through GitHub Pages. Bundled Three.js r180 and its add-ons are available under the MIT license, and the walkthrough makes no third-party requests during play. [Three.js license](vendor/LICENSE) · [Original V56 demo](https://nagynorbertbf-sudo.github.io/3D-szoba/threejs-szoba-v56-demo.html)
