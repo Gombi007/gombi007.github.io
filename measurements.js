@@ -39,18 +39,20 @@ export function createMeasurementLayer({ scale, items }, frames) {
   const rulerBounds = roomBounds.clone().expandByScalar(-0.025 * scale);
   const trimRay = new THREE.Ray();
 
-  function addSegment(start, end) {
+  function addSegment(start, end, limits) {
     trimRay.set(start, end.clone().sub(start).normalize());
-    if (!rulerBounds.containsPoint(start) && !trimRay.intersectBox(rulerBounds, start)) return false;
+    if (!limits.containsPoint(start) && !trimRay.intersectBox(limits, start)) return false;
     trimRay.origin.copy(end);
     trimRay.direction.negate();
-    if (!rulerBounds.containsPoint(end) && !trimRay.intersectBox(rulerBounds, end)) return false;
+    if (!limits.containsPoint(end) && !trimRay.intersectBox(limits, end)) return false;
     if (start.distanceToSquared(end) < 1e-12) return false;
     segments.push([start, end]);
     return true;
   }
 
-  function mark(axis, value, start, tickAxis, { labelAxis = 1, labelOffset = 0.071, toWorld, title } = {}) {
+  function mark(axis, value, start, tickAxis, {
+    labelAxis = 1, labelOffset = 0.071, toWorld, title, limits = rulerBounds,
+  } = {}) {
     const point = (coordinates) => {
       const vector = new THREE.Vector3().fromArray(coordinates);
       return toWorld ? vector.applyMatrix4(toWorld) : vector;
@@ -59,12 +61,12 @@ export function createMeasurementLayer({ scale, items }, frames) {
     end[axis] += value * scale;
     const first = point(start);
     const last = point(end);
-    if (!addSegment(first, last)) return;
+    if (!addSegment(first, last, limits)) return;
     const tickOffset = new THREE.Vector3().setComponent(tickAxis, 1);
     if (toWorld) tickOffset.transformDirection(toWorld);
     tickOffset.multiplyScalar(tick);
     for (const endpoint of [first, last]) {
-      addSegment(endpoint.clone().sub(tickOffset), endpoint.clone().add(tickOffset));
+      addSegment(endpoint.clone().sub(tickOffset), endpoint.clone().add(tickOffset), limits);
     }
 
     const canvas = document.createElement('canvas');
@@ -99,6 +101,13 @@ export function createMeasurementLayer({ scale, items }, frames) {
     const frame = frames.get(id);
     const { min, max } = frame ? { min: frame.box.min.toArray(), max: frame.box.max.toArray() } : boxes[0];
     const [width, depthOrHeight, height] = dimensions;
+    if (id === 'passage') {
+      const limits = new THREE.Box3(new THREE.Vector3().fromArray(min), new THREE.Vector3().fromArray(max));
+      limits.expandByScalar(-0.025 * scale);
+      mark(0, width, [min[0], max[1] - 4 * offset, max[2] - 2 * offset], 1,
+        { labelOffset: 0.064, limits });
+      continue;
+    }
     if (id === 'window') {
       // Keep the window rulers on the room side of the curtains and above the heater.
       const z = min[2] - 0.20 * scale;

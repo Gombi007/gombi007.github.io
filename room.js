@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=4';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=5';
 import { canStand, move } from './movement.js?v=4';
 import { formatMeasures, messages } from './translations.js?v=7';
 
@@ -87,8 +87,8 @@ async function init() {
 
   const loader = new GLTFLoader();
   const [{ scene: model }, measures, avatar] = await Promise.all([
-    loader.loadAsync(new URL('./assets/room.glb?v=6', import.meta.url).href),
-    fetch(new URL('./assets/dimensions.json?v=6', import.meta.url)).then((response) => {
+    loader.loadAsync(new URL('./assets/room.glb?v=7', import.meta.url).href),
+    fetch(new URL('./assets/dimensions.json?v=7', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),
@@ -96,6 +96,7 @@ async function init() {
   ]);
   const scale = measures.scale;
   const room = measures.items.find((item) => item.id === 'room');
+  const passage = measures.items.find((item) => item.id === 'passage');
   const [roomWidth, roomDepth] = room.dimensions;
   roomSize = [roomWidth, roomDepth];
   const scene = new THREE.Scene();
@@ -106,7 +107,6 @@ async function init() {
   const playerLayer = 1;
   const measurementLayer = 2;
   const eyeHeight = 1.64 * scale;
-  const spawn = new THREE.Vector3(1.45, 0, 0.40).multiplyScalar(scale);
 
   const player = new THREE.Group();
   avatar.scene.scale.setScalar(scale);
@@ -146,12 +146,20 @@ async function init() {
   scene.add(model);
   model.updateMatrixWorld(true);
   let floor;
+  let passageFloor;
   model.traverse((object) => {
     if (object.userData.roomRole === 'floor') floor = object;
+    if (object.userData.roomRole === 'passageFloor') passageFloor = object;
   });
-  if (!floor) throw new Error('The room export could not locate its floor.');
-  const bounds = new THREE.Box3().setFromObject(floor);
-  const obstacles = [];
+  if (!floor || !passageFloor || !passage) throw new Error('The room export could not locate both floors.');
+  const roomBounds = new THREE.Box3().setFromObject(floor);
+  const passageBounds = new THREE.Box3().setFromObject(passageFloor);
+  const bounds = roomBounds.clone().union(passageBounds);
+  const spawn = passageBounds.getCenter(new THREE.Vector3());
+  spawn.y = passageBounds.max.y;
+  spawn.z = THREE.MathUtils.lerp(passageBounds.min.z, passageBounds.max.z, 0.4);
+  const furniture = [];
+  const architecture = [];
   const wallPaints = new Map();
   const furnitureFrames = new Map(
     measures.items.filter((item) => item.rotationY).map((item) => [item.id, createFurnitureFrame(item, scale)]),
@@ -165,9 +173,12 @@ async function init() {
     const role = object.userData.roomRole;
     if (role === 'collision') {
       const id = object.userData.name?.replace(/^Move /, '');
-      obstacles.push(furnitureFrames.get(id) ?? { box: new THREE.Box3().setFromObject(object) });
+      furniture.push(furnitureFrames.get(id) ?? { box: new THREE.Box3().setFromObject(object) });
     }
     if (!object.isMesh) return;
+    if (role === 'enclosure' || role === 'architecture') {
+      architecture.push({ box: new THREE.Box3().setFromObject(object) });
+    }
     object.castShadow = object !== floor && role !== 'glass' && role !== 'mirror';
     object.receiveShadow = role !== 'glass';
     if (role === 'glass') object.material = glass;
@@ -182,8 +193,11 @@ async function init() {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     }
   });
-  if (obstacles.length !== 6 ||
-      Math.abs(bounds.max.x - bounds.min.x - roomSize[0]) > 0.01 ||
+  const playerHeight = 1.75 * scale;
+  const obstacles = [...furniture, ...architecture.filter(({ box }) => box.min.y < spawn.y + playerHeight)];
+  if (furniture.length !== 6 ||
+      Math.abs(roomBounds.max.x - roomBounds.min.x - roomWidth * scale) > 0.01 * scale ||
+      Math.abs(passageBounds.max.x - passageBounds.min.x - passage.dimensions[0] * scale) > 0.01 * scale ||
       !canStand(spawn.x, spawn.z, bounds, obstacles, scale)) {
     throw new Error('The exported room is missing its walkthrough layout.');
   }
@@ -202,14 +216,13 @@ async function init() {
     scene.add(mirror);
   }
 
-  spawn.y = bounds.max.y;
   const ceilingHeight = room.boxes[0].max[1] - 0.001 * scale;
   const ceiling = new THREE.Mesh(
-    new THREE.PlaneGeometry(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z),
+    new THREE.PlaneGeometry(roomBounds.max.x - roomBounds.min.x, roomBounds.max.z - roomBounds.min.z),
     new THREE.MeshStandardMaterial({ color: 0xebe7dd, roughness: 0.95 }),
   );
   ceiling.name = 'Ceiling';
-  bounds.getCenter(ceiling.position);
+  roomBounds.getCenter(ceiling.position);
   ceiling.position.y = ceilingHeight;
   ceiling.rotation.x = Math.PI / 2;
   scene.add(ceiling);
@@ -243,12 +256,17 @@ async function init() {
   lamp.shadow.normalBias = 0.012 * scale;
   scene.add(lamp, lamp.target);
 
+  const passageLamp = new THREE.PointLight(0xffddbb, 10 * scale ** 2, 4 * scale, 2);
+  passageBounds.getCenter(passageLamp.position);
+  passageLamp.position.y = ceilingHeight - 0.065 * scale;
+  scene.add(passageLamp);
+
   const cameraPadding = 0.11 * scale;
   const roomCameraBounds = bounds.clone();
   roomCameraBounds.min.y = spawn.y;
   roomCameraBounds.max.y = ceilingHeight;
   roomCameraBounds.expandByScalar(-cameraPadding);
-  const cameraObstacles = obstacles.map(({ box, toLocal }) => ({
+  const cameraObstacles = [...furniture, ...architecture].map(({ box, toLocal }) => ({
     box: box.clone().expandByScalar(cameraPadding), toLocal,
   }));
   const cameraRay = new THREE.Ray();
