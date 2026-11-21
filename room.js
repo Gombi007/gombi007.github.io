@@ -3,7 +3,7 @@ import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
 import { createMeasurementLayer } from './measurements.js?v=1';
 import { canStand, move } from './movement.js?v=3';
-import { formatMeasures, messages } from './translations.js?v=3';
+import { formatMeasures, messages } from './translations.js?v=4';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -49,7 +49,7 @@ function applyLanguage() {
   if (play.disabled) {
     byId('play-label').textContent = text(loadFailure ? 'unavailable' : 'loading');
     byId('intro-copy').textContent = text('intro');
-    byId('lighting-label').textContent = text('evening');
+    byId('lighting-label').textContent = text('night');
   }
   if (loadFailure) byId('load-error').textContent = text(loadFailure);
   refreshLanguage();
@@ -95,7 +95,8 @@ async function init() {
     loader.loadAsync(new URL('./assets/player.glb?v=1', import.meta.url).href),
   ]);
   const scale = measures.scale;
-  const [roomWidth, roomDepth, roomHeight] = measures.items.find((item) => item.id === 'room').dimensions;
+  const room = measures.items.find((item) => item.id === 'room');
+  const [roomWidth, roomDepth] = room.dimensions;
   roomSize = [roomWidth, roomDepth];
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xd2d3cc);
@@ -190,10 +191,50 @@ async function init() {
   }
 
   spawn.y = bounds.max.y;
+  const ceilingHeight = room.boxes[0].max[1] - 0.001 * scale;
+  const ceiling = new THREE.Mesh(
+    new THREE.PlaneGeometry(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z),
+    new THREE.MeshStandardMaterial({ color: 0xebe7dd, roughness: 0.95 }),
+  );
+  ceiling.name = 'Ceiling';
+  bounds.getCenter(ceiling.position);
+  ceiling.position.y = ceilingHeight;
+  ceiling.rotation.x = Math.PI / 2;
+  scene.add(ceiling);
+
+  const fixture = new THREE.Group();
+  fixture.name = 'Ceiling lamp';
+  fixture.position.copy(ceiling.position);
+  const trim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.184 * scale, 0.193 * scale, 0.034 * scale, 48),
+    new THREE.MeshStandardMaterial({ color: 0xcfc6b5, roughness: 0.55, metalness: 0.18 }),
+  );
+  trim.position.y = -0.017 * scale;
+  const diffuserMaterial = new THREE.MeshStandardMaterial({
+    color: 0xfff7e6, roughness: 0.38, emissive: 0xffce91, emissiveIntensity: 0,
+  });
+  const profile = [[0, -0.118], [0.09, -0.117], [0.138, -0.109], [0.17, -0.091],
+    [0.185, -0.068], [0.19, -0.034]].map(([radius, y]) => new THREE.Vector2(radius * scale, y * scale));
+  fixture.add(trim, new THREE.Mesh(new THREE.LatheGeometry(profile, 48), diffuserMaterial));
+  scene.add(fixture);
+
+  const lamp = new THREE.SpotLight(0xffcd98, 0, 5.5 * scale, 1.24, 0.55);
+  lamp.name = 'Ceiling lamp light';
+  lamp.position.copy(fixture.position);
+  lamp.position.y -= 0.125 * scale;
+  lamp.target.position.copy(fixture.position);
+  lamp.target.position.y = spawn.y;
+  const lampShadowSize = touch.matches ? 512 : 1024;
+  lamp.shadow.mapSize.set(lampShadowSize, lampShadowSize);
+  lamp.shadow.camera.layers.enable(playerLayer);
+  lamp.shadow.bias = -0.0005;
+  lamp.shadow.normalBias = 0.012 * scale;
+  scene.add(lamp, lamp.target);
+
   const cameraPadding = 0.11 * scale;
   const roomCameraBounds = bounds.clone();
   roomCameraBounds.min.y = spawn.y;
-  roomCameraBounds.max.y = spawn.y + roomHeight * scale;
+  roomCameraBounds.max.y = ceilingHeight;
   roomCameraBounds.expandByScalar(-cameraPadding);
   const cameraObstacles = obstacles.map((box) => box.clone().expandByScalar(cameraPadding));
   const cameraRay = new THREE.Ray();
@@ -205,7 +246,7 @@ async function init() {
   let thirdPerson = false;
   let yaw = entranceYaw;
   let pitch = entrancePitch;
-  let evening = false;
+  let night = false;
   let dirty = true;
   let locked = false;
   let previousTime;
@@ -289,7 +330,7 @@ async function init() {
   function refreshTip() {
     const stageTip = byId('stage-tip');
     stageTip.hidden = mode === 'ready';
-    const tip = mode === 'paused' ? 'paused' : touch.matches ? 'looking' : locked ? 'escape' : 'dragEscape';
+    const tip = mode === 'paused' ? 'paused' : touch.matches ? 'touchHint' : locked ? 'playHint' : 'dragHint';
     stageTip.textContent = text(tip);
     joystick.hidden = mode !== 'playing' || !touch.matches;
   }
@@ -312,7 +353,7 @@ async function init() {
   function refreshControls() {
     byId('play-label').textContent = text(mode === 'paused' ? 'resume' : 'play');
     byId('intro-copy').textContent = text(mode === 'paused' ? 'pausedIntro' : 'intro');
-    byId('lighting-label').textContent = text(evening ? 'day' : 'evening');
+    byId('lighting-label').textContent = text(night ? 'day' : 'night');
     refreshTip();
   }
 
@@ -337,6 +378,7 @@ async function init() {
     clearStick();
     measurements.group.visible = mode === 'playing' && measurementsEnabled;
     pause.hidden = mode !== 'playing';
+    cameraToggle.hidden = mode !== 'playing';
     restart.hidden = mode !== 'paused';
     refreshCameraToggle();
     refreshControls();
@@ -372,15 +414,19 @@ async function init() {
   }
 
   function updateLighting() {
-    evening = !evening;
-    hemisphere.intensity = evening ? 0.78 : 1.9;
-    sun.intensity = evening ? 1.63 : 2.35;
-    sun.color.setHex(evening ? 0xffbd80 : 0xfff1dd);
-    windowLight.intensity = (evening ? 4.5 : 9.5) * scale ** 2;
-    scene.background.setHex(evening ? 0x62636a : 0xd2d3cc);
-    renderer.toneMappingExposure = evening ? 0.87 : 1.03;
-    lighting.setAttribute('aria-pressed', String(evening));
-    byId('lighting-label').textContent = text(evening ? 'day' : 'evening');
+    night = !night;
+    hemisphere.intensity = night ? 0.65 : 1.9;
+    sun.intensity = night ? 0.24 : 2.35;
+    sun.color.setHex(night ? 0xa5bbf1 : 0xfff1dd);
+    sun.castShadow = !night;
+    windowLight.intensity = (night ? 1.3 : 9.5) * scale ** 2;
+    lamp.intensity = night ? 19 * scale ** 2 : 0;
+    lamp.castShadow = night;
+    diffuserMaterial.emissiveIntensity = night ? 1.8 : 0;
+    scene.background.setHex(night ? 0x29334b : 0xd2d3cc);
+    renderer.toneMappingExposure = night ? 0.94 : 1.03;
+    lighting.setAttribute('aria-pressed', String(night));
+    byId('lighting-label').textContent = text(night ? 'day' : 'night');
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
   }
@@ -407,14 +453,14 @@ async function init() {
     }
   });
   document.addEventListener('keydown', (event) => {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.code === 'KeyV') {
+    if (mode !== 'playing' || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'KeyE') {
+      event.preventDefault();
+      if (!event.repeat) updateLighting();
+    } else if (event.code === 'KeyV') {
       event.preventDefault();
       if (!event.repeat) switchCamera();
-      return;
-    }
-    if (mode !== 'playing') return;
-    if (event.code === 'KeyQ') {
+    } else if (event.code === 'KeyQ') {
       event.preventDefault();
       if (!event.repeat) {
         measurementsEnabled = !measurementsEnabled;
