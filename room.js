@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
+import { createMeasurementLayer } from './measurements.js?v=1';
 import { canStand, move } from './movement.js?v=3';
-import { formatMeasures, messages } from './translations.js?v=2';
+import { formatMeasures, messages } from './translations.js?v=3';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -12,8 +13,6 @@ const cameraToggle = byId('camera-toggle');
 const pause = byId('pause');
 const restart = byId('restart');
 const joystick = byId('joystick');
-const dimensionToggle = byId('dimensions-toggle');
-const dimensionPanel = byId('dimensions-panel');
 const touch = matchMedia('(pointer: coarse)');
 const entranceYaw = Math.PI;
 const entrancePitch = -0.075;
@@ -104,6 +103,7 @@ async function init() {
   eye.rotation.order = 'YXZ';
   const chase = new THREE.PerspectiveCamera(63, 1, 0.028 * scale, 45 * scale);
   const playerLayer = 1;
+  const measurementLayer = 2;
   const eyeHeight = 1.64 * scale;
   const spawn = new THREE.Vector3(1.45, 0, 0.40).multiplyScalar(scale);
 
@@ -213,68 +213,13 @@ async function init() {
   let stickPointer = null;
   let stickSide = 0;
   let stickForward = 0;
+  let measurementsEnabled = false;
   const keys = new Set();
-  const dimensionsOverlay = new THREE.Group();
-  dimensionsOverlay.visible = false;
-  scene.add(dimensionsOverlay);
-  const dimensionRows = [];
-  const structureIds = new Set(['room', 'sideWalls', 'entranceWall', 'windowWall', 'window', 'doorway']);
-  let selectedDimension;
-  for (const item of measures.items) {
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'dimension-row';
-    row.setAttribute('aria-pressed', 'false');
-    const name = document.createElement('span');
-    const value = document.createElement('span');
-    row.append(name, value);
-    byId(structureIds.has(item.id) ? 'structure-list' : 'furniture-list').append(row);
-    dimensionRows.push({ row, name, value, item });
-    row.addEventListener('click', () => selectDimension(item));
-  }
-
-  function selectDimension(item) {
-    if (selectedDimension === item) {
-      dirty = true;
-      return;
-    }
-    selectedDimension = item;
-    for (const helper of [...dimensionsOverlay.children]) {
-      dimensionsOverlay.remove(helper);
-      helper.geometry.dispose();
-      helper.material.dispose();
-    }
-    for (const { min, max } of item.boxes) {
-      const box = new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max));
-      const helper = new THREE.Box3Helper(box, 0x5edfdf);
-      helper.material.depthTest = false;
-      helper.material.depthWrite = false;
-      helper.material.toneMapped = false;
-      helper.renderOrder = 5;
-      dimensionsOverlay.add(helper);
-    }
-    for (const entry of dimensionRows) {
-      entry.row.setAttribute('aria-pressed', String(entry.item === item));
-    }
-    dirty = true;
-  }
-
-  function showDimensions(show) {
-    if (show && mode === 'playing') pauseWalk();
-    dimensionsOverlay.visible = show;
-    dimensionPanel.hidden = !show;
-    document.body.classList.toggle('shows-dimensions', show);
-    dimensionToggle.setAttribute('aria-pressed', String(show));
-    if (show && !selectedDimension) selectDimension(measures.items[0]);
-    if (show) byId('dimensions-close').focus({ preventScroll: true });
-    dirty = true;
-  }
-
-  dimensionToggle.addEventListener('click', () => showDimensions(dimensionPanel.hidden));
-  byId('dimensions-close').addEventListener('click', () => {
-    showDimensions(false);
-    dimensionToggle.focus();
-  });
+  const measurements = createMeasurementLayer(measures);
+  measurements.group.traverse((object) => object.layers.set(measurementLayer));
+  eye.layers.enable(measurementLayer);
+  chase.layers.enable(measurementLayer);
+  scene.add(measurements.group);
 
   function updateCameras(delta) {
     eye.position.copy(player.position);
@@ -374,10 +319,8 @@ async function init() {
   refreshLanguage = () => {
     canvas.setAttribute('aria-label', text('canvas'));
     refreshControls();
-    for (const { name, value, item } of dimensionRows) {
-      name.textContent = text(item.id);
-      value.textContent = formatMeasures(item.dimensions, language);
-    }
+    measurements.setLanguage(language);
+    dirty = true;
   };
 
   function clearStick() {
@@ -392,6 +335,7 @@ async function init() {
     keys.clear();
     lookPointer = null;
     clearStick();
+    measurements.group.visible = mode === 'playing' && measurementsEnabled;
     pause.hidden = mode !== 'playing';
     restart.hidden = mode !== 'paused';
     refreshCameraToggle();
@@ -415,7 +359,6 @@ async function init() {
   }
 
   function start() {
-    showDimensions(false);
     changeMode('playing');
     canvas.focus({ preventScroll: true });
     lockMouse();
@@ -470,17 +413,15 @@ async function init() {
       if (!event.repeat) switchCamera();
       return;
     }
-    if (event.code === 'KeyM' && !event.repeat) {
-      showDimensions(dimensionPanel.hidden);
-      return;
-    }
-    if (event.code === 'Escape' && !dimensionPanel.hidden) {
-      showDimensions(false);
-      dimensionToggle.focus();
-      return;
-    }
     if (mode !== 'playing') return;
-    if (event.code === 'Escape') {
+    if (event.code === 'KeyQ') {
+      event.preventDefault();
+      if (!event.repeat) {
+        measurementsEnabled = !measurementsEnabled;
+        measurements.group.visible = measurementsEnabled;
+        dirty = true;
+      }
+    } else if (event.code === 'Escape') {
       event.preventDefault();
       pauseWalk();
     } else if (moveKeys.has(event.code)) {
@@ -536,7 +477,7 @@ async function init() {
   });
 
   canvas.hidden = false;
-  play.disabled = lighting.disabled = dimensionToggle.disabled = cameraToggle.disabled = false;
+  play.disabled = lighting.disabled = cameraToggle.disabled = false;
   resetPlayer();
   resize();
   changeMode('ready');

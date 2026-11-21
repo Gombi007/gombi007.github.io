@@ -16,7 +16,7 @@ python -m http.server 8000
 
 Select **Play** to enter the room. Press **V** or select the **FPS/TPS** button to switch cameras. On a computer, use **WASD** or the arrow keys to walk, the mouse to look and **Esc** to pause. If the browser declines pointer lock, drag to look. On a touch screen, use the joystick and drag the view. **Evening** switches the lighting.
 
-Use **EN** or **HU** to switch languages. Select **Dimensions** or press **M** to show the measurements generated from the Blender scene. Select any measurement to highlight its location, and hide the panel when you are done.
+Use **EN** or **HU** to switch languages. Press **Q** during play to toggle the measurement lines and labels on the room and furniture.
 
 The repo root can be served directly by GitHub Pages from the `main` branch. Three.js r180 and the needed addons are included under `vendor/` with their MIT license. The site makes no third-party requests at runtime.
 
