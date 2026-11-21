@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=7';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=8';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=9';
+import { formatMeasures, messages } from './translations.js?v=10';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
@@ -16,6 +16,13 @@ const touch = matchMedia('(pointer: coarse)');
 const entranceYaw = Math.PI;
 const entrancePitch = -0.075;
 const wallColors = { 1: null, 2: 0x7d93a9, 3: 0x899d8a, 4: 0x686a6d, 5: 0x34373d };
+const floorTints = {
+  6: [0.84, 1.02, 1.52],
+  7: [0.88, 1.02, 1.27],
+  8: [0.94, 1.01, 1.12],
+  9: [1, 1, 1],
+};
+const laminateMaterials = new Set(['Laminate · Warm natural grey oak', 'Laminate · Taupe shadow joints']);
 const moveKeys = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight',
   'ShiftLeft', 'ShiftRight',
@@ -34,13 +41,24 @@ try {
 const text = (key) => messages[language][key];
 
 function showKeyboardHint(element, hint) {
-  const parts = text(hint).split(/\[([^\]]+)\]/);
-  element.replaceChildren(...parts.map((part, index) => {
-    if (index % 2 === 0) return part;
-    const key = document.createElement('kbd');
-    key.textContent = part;
-    return key;
-  }));
+  const rows = text(hint).split('\n').map((line) => {
+    const row = document.createElement('span');
+    row.className = 'control-row';
+    for (const description of line.split(' · ')) {
+      const shortcut = document.createElement('span');
+      shortcut.className = 'shortcut';
+      const parts = description.split(/\[([^\]]+)\]/);
+      shortcut.append(...parts.map((part, index) => {
+        if (index % 2 === 0) return part;
+        const key = document.createElement('kbd');
+        key.textContent = part;
+        return key;
+      }));
+      row.append(shortcut);
+    }
+    return row;
+  });
+  element.replaceChildren(...rows);
 }
 
 function applyLanguage() {
@@ -172,6 +190,7 @@ async function init() {
   const furniture = [];
   const architecture = [];
   const wallPaints = new Map();
+  const floorFinishes = new Map();
   const furnitureFrames = new Map(
     measures.items.filter((item) => item.rotationY).map((item) => [item.id, createFurnitureFrame(item, scale)]),
   );
@@ -202,6 +221,9 @@ async function init() {
     const maps = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of maps) {
       if (material.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      if (laminateMaterials.has(material.name) && !floorFinishes.has(material)) {
+        floorFinishes.set(material, material.color.clone());
+      }
     }
   });
   const playerHeight = 1.75 * scale;
@@ -502,6 +524,14 @@ async function init() {
     dirty = true;
   }
 
+  function changeFloorTint(key) {
+    const tint = new THREE.Color(...floorTints[key]);
+    for (const [material, originalColor] of floorFinishes) {
+      material.color.copy(originalColor).multiply(tint);
+    }
+    dirty = true;
+  }
+
   play.addEventListener('click', start);
   lighting.addEventListener('click', () => setLighting(!night));
   pause.addEventListener('click', pauseWalk);
@@ -534,6 +564,9 @@ async function init() {
     if (Object.hasOwn(wallColors, event.key)) {
       event.preventDefault();
       if (!event.repeat) changeWallPaint(event.key);
+    } else if (Object.hasOwn(floorTints, event.key)) {
+      event.preventDefault();
+      if (!event.repeat) changeFloorTint(event.key);
     } else if (event.code === 'KeyE') {
       event.preventDefault();
       if (!event.repeat) setLighting(!night);
