@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#192024">
   <meta name="description" content="Explore a furnished 3D room in first person, built from the Blender model.">
-  <title>3D Szoba · Room Walkthrough</title>
-  <link rel="stylesheet" href="./style.css">
+  <title>3D Room · Room Walkthrough</title>
+  <link rel="stylesheet" href="./style.css?v=2">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js"></script>
+  <script type="module" src="./room.js?v=2"></script>
 </head>
 <body data-mode="overview">
   <main class="layout">
-    <aside class="panel" id="panel" aria-label="Walkthrough menu">
+    <aside class="panel" id="panel" aria-label="Walkthrough menu" data-i18n-label="menu">
       <div class="brand">
         <span class="brand-icon" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none">
@@ -22,39 +22,53 @@
               stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span>Room walkthrough</span>
+        <span data-i18n="brand">Room walkthrough</span>
       </div>
 
       <div class="intro">
-        <h1>3D Szoba</h1>
-        <p class="room-size">2.90 × 4.10 m</p>
+        <h1 data-i18n="title">3D Room</h1>
+        <p class="room-size" id="room-size">5.80 × 8.20 m</p>
         <p class="intro-copy" id="intro-copy">Take a first-person walk through the furnished room.</p>
         <button class="play" id="play" type="button" disabled>
           <span class="play-icon" aria-hidden="true"></span>
           <span id="play-label">Loading room…</span>
         </button>
         <p class="load-error" id="load-error" role="status" hidden></p>
-        <button class="text-button" id="restart" type="button" hidden>Return to entrance</button>
+        <button class="text-button" id="restart" type="button" data-i18n="restart" hidden>Return to entrance</button>
       </div>
 
-      <div class="controls" aria-label="Game controls">
+      <div class="controls" aria-label="Game controls" data-i18n-label="controls">
         <div class="desktop-controls">
-          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Move</span></div>
-          <div class="control-row"><span class="control-device">Mouse</span><span>Look around</span></div>
-          <div class="control-row"><span><kbd>Esc</kbd></span><span>Pause</span></div>
+          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span data-i18n="move">Move</span></div>
+          <div class="control-row"><span class="control-device" data-i18n="mouse">Mouse</span><span data-i18n="look">Look around</span></div>
+          <div class="control-row"><span><kbd>Esc</kbd></span><span data-i18n="pause">Pause</span></div>
         </div>
-        <p class="touch-controls">Use the joystick to move. Drag the room to look around.</p>
+        <p class="touch-controls" data-i18n="touchControls">Use the joystick to move. Drag the room to look around.</p>
       </div>
+
+      <section class="dimensions-panel" id="dimensions-panel" aria-labelledby="dimensions-title" hidden>
+        <header>
+          <h2 id="dimensions-title" data-i18n="dimensions">Dimensions</h2>
+          <button id="dimensions-close" class="dimension-close" type="button" aria-label="Hide dimensions" data-i18n-label="closeDimensions">×</button>
+        </header>
+        <h3 data-i18n="structure">Walls and openings</h3>
+        <p data-i18n="structureOrder">Room: width × depth × height. Walls and openings: width × height.</p>
+        <div id="structure-list" class="dimensions-list"></div>
+        <h3 data-i18n="furniture">Furniture</h3>
+        <p data-i18n="furnitureOrder">Width × depth × height.</p>
+        <div id="furniture-list" class="dimensions-list"></div>
+      </section>
     </aside>
 
-    <section class="stage" id="stage" aria-label="Interactive 3D room">
+    <section class="stage" id="stage" aria-label="Interactive 3D room" data-i18n-label="stage">
       <div class="viewport" id="viewport"></div>
       <div class="stage-top">
         <button class="scene-button" id="pause" type="button" hidden>
-          <span class="pause-icon" aria-hidden="true"></span>Pause
+          <span class="pause-icon" aria-hidden="true"></span><span data-i18n="pause">Pause</span>
         </button>
-        <span class="view-label" id="view-label">Cutaway</span>
+        <span class="view-label" id="view-label" data-i18n="cutaway">Cutaway</span>
         <div class="stage-tools">
+          <button class="scene-button" id="dimensions-toggle" type="button" aria-controls="dimensions-panel" aria-pressed="false" aria-keyshortcuts="M" data-i18n="dimensions" disabled>Dimensions</button>
           <button class="scene-button" id="lighting" type="button" aria-pressed="false" disabled>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20.5 15.7a8.8 8.8 0 0 1-12.2-12 9 9 0 1 0 12.2 12Z"
@@ -62,7 +76,11 @@
             </svg>
             <span id="lighting-label">Evening</span>
           </button>
-          <button class="scene-button" id="overview" type="button" hidden>Room overview</button>
+          <button class="scene-button" id="overview" type="button" data-i18n="overview" hidden>Room overview</button>
+          <div class="language" role="group" aria-label="Language" data-i18n-label="language">
+            <button type="button" data-lang="en" aria-label="English" aria-pressed="true">EN</button>
+            <button type="button" data-lang="hu" lang="hu" aria-label="Magyar" aria-pressed="false">HU</button>
+          </div>
         </div>
       </div>
 
