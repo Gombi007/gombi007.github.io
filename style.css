@@ -124,6 +124,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .scene-button { display: flex; gap: 8px; align-items: center; min-height: 42px; padding: 9px 13px; pointer-events: auto; }
 .scene-button:hover, .scene-button[aria-pressed="true"] { background: #3a3d35; color: #ffe0aa; }
 .scene-button:disabled { opacity: .6; }
+.music-button[aria-pressed="true"] .music-off { display: none; }
 .language {
   display: flex;
   align-items: stretch;

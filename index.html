@@ -6,11 +6,11 @@
   <meta name="theme-color" content="#192024">
   <meta name="description" content="Járd be a Blenderben készült berendezett szobát belső vagy külső nézetből.">
   <title>3D Szoba · Szobabejárás</title>
-  <link rel="stylesheet" href="./style.css?v=8">
+  <link rel="stylesheet" href="./style.css?v=9">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.min.js" } }
   </script>
-  <script type="module" src="./room.js?v=19"></script>
+  <script type="module" src="./room.js?v=20"></script>
 </head>
 <body data-mode="ready">
   <main class="layout">
@@ -38,8 +38,8 @@
       </div>
 
       <div class="controls" aria-label="Irányítás" data-i18n-label="controls">
-        <p class="desktop-controls" id="desktop-controls">WASD / nyilak · Shift futás · Egér
-Q méretek · V nézet · E fény · F teljes képernyő · Esc szünet
+        <p class="desktop-controls" id="desktop-controls">WASD / nyilak · Shift futás · Egér · Esc szünet
+Q méretek · V nézet · E fény · M zene · F teljes képernyő
 Fal 1–5 · Padló 6–9</p>
         <p class="touch-controls" data-i18n="touchControls">Mozgás a virtuális karral. A körülnézéshez húzd el a képet.</p>
       </div>
@@ -58,6 +58,14 @@ Fal 1–5 · Padló 6–9</p>
                 stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span id="lighting-label">Nappali fény</span>
+          </button>
+          <button class="scene-button music-button" id="music" type="button" aria-pressed="true" aria-keyshortcuts="M" disabled>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 17V6l11-2v11M9 17a2.5 2.5 0 1 1-2.5-2.5H9Zm11-2a2.5 2.5 0 1 1-2.5-2.5H20Z"/>
+              <path class="music-off" d="M4 4l16 16"/>
+            </svg>
+            <span data-i18n="music">Zene</span>
           </button>
           <div class="language" role="group" aria-label="Nyelv" data-i18n-label="language">
             <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>

@@ -1,20 +1,23 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { Reflector } from './vendor/objects/Reflector.js';
-import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=8';
+import { createFurnitureFrame, createMeasurementLayer } from './measurements.js?v=9';
 import { canStand, move } from './movement.js?v=4';
-import { formatMeasures, messages } from './translations.js?v=10';
+import { formatMeasures, messages } from './translations.js?v=11';
+import { createTourAudio } from './tour-audio.js?v=1';
 
 const byId = (id) => document.getElementById(id);
 const viewport = byId('viewport');
 const play = byId('play');
 const lighting = byId('lighting');
+const musicButton = byId('music');
 const pause = byId('pause');
 const restart = byId('restart');
 const joystick = byId('joystick');
 const touch = matchMedia('(pointer: coarse)');
 const entranceYaw = Math.PI;
 const entrancePitch = -0.075;
+const walkSpeed = 1.55;
 const wallColors = { 1: null, 2: 0x7d93a9, 3: 0x899d8a, 4: 0x686a6d, 5: 0x34373d };
 const floorTints = {
   6: [0.84, 1.02, 1.52],
@@ -149,7 +152,9 @@ async function init() {
   scene.add(player);
   const mixer = new THREE.AnimationMixer(avatar.scene);
   const idle = mixer.clipAction(THREE.AnimationClip.findByName(avatar.animations, 'Idle'));
-  const walk = mixer.clipAction(THREE.AnimationClip.findByName(avatar.animations, 'Walk'));
+  const walkClip = THREE.AnimationClip.findByName(avatar.animations, 'Walk');
+  const walk = mixer.clipAction(walkClip);
+  const audio = createTourAudio(walkClip.duration * walkSpeed / 2);
   idle.play();
   mixer.update(0);
   let activeAction = idle;
@@ -441,6 +446,7 @@ async function init() {
 
   function changeMode(next) {
     mode = next;
+    audio.setPlaying(mode === 'playing');
     document.body.dataset.mode = mode;
     keys.clear();
     lookPointer = null;
@@ -532,8 +538,13 @@ async function init() {
     dirty = true;
   }
 
+  function toggleMusic() {
+    musicButton.setAttribute('aria-pressed', String(audio.toggleMusic()));
+  }
+
   play.addEventListener('click', start);
   lighting.addEventListener('click', () => setLighting(!night));
+  musicButton.addEventListener('click', toggleMusic);
   pause.addEventListener('click', pauseWalk);
   restart.addEventListener('click', () => {
     resetPlayer();
@@ -570,6 +581,9 @@ async function init() {
     } else if (event.code === 'KeyE') {
       event.preventDefault();
       if (!event.repeat) setLighting(!night);
+    } else if (event.code === 'KeyM' && audio.supported) {
+      event.preventDefault();
+      if (!event.repeat) toggleMusic();
     } else if (event.code === 'KeyV') {
       event.preventDefault();
       if (!event.repeat) switchCamera();
@@ -637,6 +651,7 @@ async function init() {
 
   canvas.hidden = false;
   play.disabled = lighting.disabled = false;
+  musicButton.disabled = !audio.supported;
   changeWallPaint('4');
   setLighting(night);
   resetPlayer();
@@ -653,7 +668,7 @@ async function init() {
     if (mode === 'playing') {
       const side = stickSide + held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft');
       const forward = stickForward + held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown');
-      const speed = held('ShiftLeft', 'ShiftRight') ? 2.35 : 1.55;
+      const speed = held('ShiftLeft', 'ShiftRight') ? 2.35 : walkSpeed;
       const { x, z } = player.position;
       if (side || forward) {
         move(player.position, yaw, side, forward, delta * speed * scale, bounds, obstacles, scale);
@@ -661,6 +676,7 @@ async function init() {
       const dx = player.position.x - x;
       const dz = player.position.z - z;
       const distance = Math.hypot(dx, dz);
+      audio.advance(distance / scale);
       const nextAction = distance > 0 ? walk : idle;
       if (activeAction !== nextAction) {
         activeAction.fadeOut(0.14);
@@ -668,7 +684,7 @@ async function init() {
         activeAction = nextAction;
       }
       if (distance > 0) {
-        walk.timeScale = Math.max(0.45, distance / (delta * 1.55 * scale));
+        walk.timeScale = Math.max(0.45, distance / (delta * walkSpeed * scale));
         if (thirdPerson) {
           const turn = Math.atan2(dx, dz) - player.rotation.y;
           player.rotation.y += Math.atan2(Math.sin(turn), Math.cos(turn)) * Math.min(1, delta * 14);

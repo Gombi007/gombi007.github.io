@@ -18,6 +18,8 @@ Select **Play** to start in the 2.90 m wide, 4.00 m deep entrance passage. Walk 
 
 Use **EN** or **HU** to switch languages. Press **Q** during play to toggle measurement lines and labels, and **F** to toggle fullscreen. Use **1–5** to select light grey, blue, green, medium-dark grey, or dark grey walls. Use **6–9** to change the laminate floor from cool to warm. **9** restores the original warm finish.
 
+The walkthrough includes original laminate footsteps and a royalty-free light trance loop composed for this project. Press **M** or select **Music** to toggle the soundtrack during play. Footsteps are independent of the music setting.
+
 The repo root can be served directly by GitHub Pages from the `main` branch. Three.js r180 and the needed addons are included under `vendor/` with their MIT license. The site makes no third-party requests at runtime.
 
 [Original V56 demo](https://nagynorbertbf-sudo.github.io/3D-szoba/threejs-szoba-v56-demo.html)
