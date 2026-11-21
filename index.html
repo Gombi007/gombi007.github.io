@@ -1,56 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/x-icon" href="./favicon1.png">
-    <title>JS Game</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#192024">
+  <meta name="description" content="Explore a furnished 3D room in first person, built from the Blender model.">
+  <title>3D Szoba · Room Walkthrough</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js" } }
+  </script>
+  <script type="module" src="./room.js"></script>
 </head>
-
-<body>
-    <h3>Pure Javascript Game</h3>
-    <h5>Created By Gombi007 >>>
-        <span>
-            <a href="https://github.com/Gombi007" target="_blank">GitHub Link</a>
+<body data-mode="overview">
+  <main class="layout">
+    <aside class="panel" id="panel" aria-label="Walkthrough menu">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M16 3 28 9.5v13L16 29 4 22.5v-13L16 3Zm0 13 12-6.5M16 16 4 9.5M16 16v13"
+              stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
+          </svg>
         </span>
-        <p>Use the ARROW keys to control the player and SPACE to bite</p>
-    </h5>
-    <div id="restart"></div>
-    <div class="container">
-        <div class="controls">
-            <label for="animations">Test Player Animations</label>
-            <select id="animations" name="animations">
-                <option value="idle">Idle</option>
-                <option value="jump">Jump</option>
-                <option value="fall">Fall</option>
-                <option value="run">Run</option>
-                <option value="dizzy">Dizzy</option>
-                <option value="sit">Sit</option>
-                <option value="roll">Roll</option>
-                <option value="bite">Bite</option>
-                <option value="ko">KO</option>
-                <option value="gethit">Get Hit</option>
-                <option value="idle-reverse">Idle Reverse</option>
-                <option value="run-reverse">Run Reverse</option>
-            </select>
+        <span>Room walkthrough</span>
+      </div>
+
+      <div class="intro">
+        <h1>3D Szoba</h1>
+        <p class="room-size">2.90 × 4.10 m</p>
+        <p class="intro-copy" id="intro-copy">Take a first-person walk through the furnished room.</p>
+        <button class="play" id="play" type="button" disabled>
+          <span class="play-icon" aria-hidden="true"></span>
+          <span id="play-label">Loading room…</span>
+        </button>
+        <p class="load-error" id="load-error" role="status" hidden></p>
+        <button class="text-button" id="restart" type="button" hidden>Return to entrance</button>
+      </div>
+
+      <div class="controls" aria-label="Game controls">
+        <div class="desktop-controls">
+          <div class="control-row"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Move</span></div>
+          <div class="control-row"><span class="control-device">Mouse</span><span>Look around</span></div>
+          <div class="control-row"><span><kbd>Esc</kbd></span><span>Pause</span></div>
         </div>
+        <p class="touch-controls">Use the joystick to move. Drag the room to look around.</p>
+      </div>
+    </aside>
 
-        <div class="slidecontainer">
-            <label for="slider">Game Speed:</label for="slider">
-            <input id="slider" name="slider" type="range" min="1" max="3" value="2">
+    <section class="stage" id="stage" aria-label="Interactive 3D room">
+      <div class="viewport" id="viewport"></div>
+      <div class="stage-top">
+        <button class="scene-button" id="pause" type="button" hidden>
+          <span class="pause-icon" aria-hidden="true"></span>Pause
+        </button>
+        <span class="view-label" id="view-label">Cutaway</span>
+        <div class="stage-tools">
+          <button class="scene-button" id="lighting" type="button" aria-pressed="false" disabled>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20.5 15.7a8.8 8.8 0 0 1-12.2-12 9 9 0 1 0 12.2 12Z"
+                stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span id="lighting-label">Evening</span>
+          </button>
+          <button class="scene-button" id="overview" type="button" hidden>Room overview</button>
         </div>
+      </div>
 
-        <div class="guide">
-        </div>
-    </div>
-
-    <canvas id="canvas1"></canvas>
-
-
-    <script src="script.js" type="module"></script>
+      <p class="stage-tip" id="stage-tip">Drag to orbit · Scroll to zoom</p>
+      <div class="reticle" id="reticle" hidden aria-hidden="true"></div>
+      <div class="joystick" id="joystick" hidden aria-hidden="true">
+        <span id="joystick-knob"></span>
+      </div>
+    </section>
+  </main>
+  <noscript>Enable JavaScript to walk through the 3D room.</noscript>
 </body>
-
 </html>
