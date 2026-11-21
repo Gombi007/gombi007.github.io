@@ -1,6 +1,8 @@
 # 3D Blender Preview
 
-An interactive browser walkthrough of the furnished 3D Szoba room. The geometry in `assets/room.glb` was exported from the uniformly doubled Blender scene. The room measures 5.80 × 8.20 m, with 5.20 m walls. The browser uses the Blender export for the cutaway, first-person view, and furniture collision bounds.
+An interactive browser walkthrough of the furnished 3D Szoba room. The geometry in `assets/room.glb` was exported from the Blender scene at its original scale. The room measures 2.90 × 4.10 m, with 2.60 m walls. The browser uses the Blender export for the cutaway, first-person view, and furniture collision bounds.
+
+The [editable room](blender/3D%20Szoba%20V56.blend) is saved in `blender/`. Open **04 · Dimensions** in Blender for the annotated floor plan.
 
 ## Run locally
 

@@ -24,7 +24,7 @@ const moveKeys = new Set([
 const languageButtons = document.querySelectorAll('[data-lang]');
 let language = 'en';
 let loadFailure;
-let roomSize = [5.8, 8.2];
+let roomSize = [2.9, 4.1];
 let refreshLanguage = () => {};
 try {
   if (localStorage.getItem('room-language') === 'hu') language = 'hu';
@@ -88,8 +88,8 @@ async function init() {
   canvas.hidden = true;
 
   const [{ scene: model }, measures] = await Promise.all([
-    new GLTFLoader().loadAsync(new URL('./assets/room.glb?v=2', import.meta.url).href),
-    fetch(new URL('./assets/dimensions.json?v=2', import.meta.url)).then((response) => {
+    new GLTFLoader().loadAsync(new URL('./assets/room.glb?v=3', import.meta.url).href),
+    fetch(new URL('./assets/dimensions.json?v=3', import.meta.url)).then((response) => {
       if (!response.ok) throw new Error('The dimensions file could not be loaded.');
       return response.json();
     }),
